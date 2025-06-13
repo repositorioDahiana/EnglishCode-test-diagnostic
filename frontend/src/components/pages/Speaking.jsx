@@ -10,7 +10,7 @@ export default function Speaking({ onComplete }) {
   const [recordings, setRecordings] = useState({});
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
-
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
   useEffect(() => {
     fetchAvailableTests();
   }, []);
@@ -46,7 +46,7 @@ export default function Speaking({ onComplete }) {
 
   const fetchAvailableTests = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/speaking/tests/');
+      const response = await fetch(`${API_BASE_URL}/api/speaking/tests/`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudieron cargar los tests disponibles');
@@ -66,7 +66,7 @@ export default function Speaking({ onComplete }) {
 
   const fetchTestData = async (testId) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/speaking/tests/${testId}/`);
+      const response = await fetch(`${API_BASE_URL}/api/speaking/tests/${testId}/`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudo cargar el test');
@@ -154,8 +154,7 @@ export default function Speaking({ onComplete }) {
         formData.append('audio', recording.blob, `block_${blockId}.wav`);
       }
   
-      const response = await fetch(
-        `http://localhost:8000/api/speaking/tests/${testData.id}/submit_answers/`,
+      const response = await fetch(`${API_BASE_URL}/api/speaking/tests/${testData.id}/submit_answers/`,
         {
           method: 'POST',
           body: formData,

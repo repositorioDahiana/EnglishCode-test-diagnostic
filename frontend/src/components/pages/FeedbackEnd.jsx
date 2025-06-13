@@ -9,14 +9,13 @@ import ObjetivoIcon from '../../assets/iconos/objetivo.png';
 export default function FeedbackEnd() {
   const [profile, setProfile] = useState(null);
   const [error, setError] = useState(null);
-
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
   const userInfo = JSON.parse(localStorage.getItem('userTestInfo'));
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const response = await fetch(
-          `http://localhost:8000/api/users/?email=${userInfo.email}`
+        const response = await fetch(`${API_BASE_URL}/api/users/?email=${userInfo.email}`
         );
 
         if (!response.ok) {

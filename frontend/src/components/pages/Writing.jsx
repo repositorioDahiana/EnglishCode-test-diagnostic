@@ -8,7 +8,7 @@ export default function Writing({ onComplete }) {
   const [currentBlockIndex, setCurrentBlockIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(900);
   const [answers, setAnswers] = useState({});
-
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
   // Normaliza el texto, eliminando espacios y saltos de línea adicionales
   const normalizeText = (text) => {
     // Elimina los espacios en blanco y líneas vacías
@@ -85,7 +85,7 @@ export default function Writing({ onComplete }) {
 
   const fetchAvailableTests = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/writing/tests/');
+      const response = await fetch(`${API_BASE_URL}/api/writing/tests/`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudieron cargar los tests disponibles');
@@ -105,7 +105,7 @@ export default function Writing({ onComplete }) {
 
   const fetchTestData = async (testId) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/writing/tests/${testId}/`);
+      const response = await fetch(`${API_BASE_URL}/api/writing/tests/${testId}/`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudo cargar el test');
@@ -164,8 +164,7 @@ export default function Writing({ onComplete }) {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:8000/api/writing/tests/${testData.id}/submit_answers/`,
+      const response = await fetch(`${API_BASE_URL}/api/writing/tests/${testData.id}/submit_answers/`,
         {
           method: 'POST',
           headers: {

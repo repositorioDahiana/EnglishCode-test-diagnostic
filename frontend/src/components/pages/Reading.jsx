@@ -8,6 +8,7 @@ export default function Reading({ onComplete }) {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [currentBlockIndex, setCurrentBlockIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(900); // 15 minutos
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     fetchAvailableTests();
@@ -44,7 +45,7 @@ export default function Reading({ onComplete }) {
 
   const fetchAvailableTests = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/reading/tests/');
+      const response = await fetch(`${API_BASE_URL}/api/reading/tests/`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudieron cargar los tests disponibles');
@@ -64,7 +65,7 @@ export default function Reading({ onComplete }) {
 
   const fetchTestData = async (testId) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/reading/tests/${testId}/`);
+      const response = await fetch(`${API_BASE_URL}/api/reading/tests/${testId}/`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudo cargar el test');
@@ -122,8 +123,7 @@ export default function Reading({ onComplete }) {
     }
   
     try {
-      const response = await fetch(
-        `http://localhost:8000/api/reading/tests/${testData.id}/submit_answers/`,
+      const response = await fetch(`${API_BASE_URL}/api/reading/tests/${testData.id}/submit_answers/`,
         {
           method: 'POST',
           headers: {

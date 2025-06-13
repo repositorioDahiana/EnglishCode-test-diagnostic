@@ -24,11 +24,11 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit }) {
   const [isCheckingTests, setIsCheckingTests] = useState(false);
   const [hasTests, setHasTests] = useState(false);
   const [userStatus, setUserStatus] = useState(''); // 'existing' o 'new'
-
+  
   const checkTestsAvailability = async (verticalId) => {
     setIsCheckingTests(true);
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      const API_BASE_URL = import.meta.env.VITE_API_URL;
 
       const listeningResponse = await axios.get(`${API_BASE_URL}/api/listening/tests/`, { params: { vertical: verticalId } });
       const readingResponse = await axios.get(`${API_BASE_URL}/api/reading/tests/`, { params: { vertical: verticalId } });
@@ -85,7 +85,7 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit }) {
   };
 
   const checkExistingUser = async () => {
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const API_BASE_URL = import.meta.env.VITE_API_URL;
     try {
       const response = await axios.get(`${API_BASE_URL}/api/users/`, {
         params: { email }
@@ -109,7 +109,7 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit }) {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+    const API_BASE_URL = import.meta.env.VITE_API_URL;
 
     try {
       // Primero verificamos si el usuario existe

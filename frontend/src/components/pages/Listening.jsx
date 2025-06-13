@@ -8,6 +8,7 @@ export default function Listening({ onComplete }) {
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [currentBlockIndex, setCurrentBlockIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(900); // 15 minutos
+  const API_BASE_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
     fetchAvailableTests();
@@ -44,7 +45,7 @@ export default function Listening({ onComplete }) {
 
   const fetchAvailableTests = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/listening/tests/');
+      const response = await fetch(`${API_BASE_URL}/api/listening/tests/`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudieron cargar los tests disponibles');
@@ -64,7 +65,7 @@ export default function Listening({ onComplete }) {
 
   const fetchTestData = async (testId) => {
     try {
-      const response = await fetch(`http://localhost:8000/api/listening/tests/${testId}/`);
+      const response = await fetch(`${API_BASE_URL}/api/listening/tests/${testId}/`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudo cargar el test');
@@ -166,7 +167,7 @@ export default function Listening({ onComplete }) {
   
     try {
       const response = await fetch(
-        `http://localhost:8000/api/listening/tests/${testData.id}/submit_answers/`,
+        `${API_BASE_URL}/api/listening/tests/${testData.id}/submit_answers/`,
         {
           method: 'POST',
           headers: {
