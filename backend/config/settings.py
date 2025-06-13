@@ -54,7 +54,9 @@ SECRET_KEY = 'django-insecure-!uww1jr@ht#6hu8s%d(xgxn4l5)riu-@car%_bsp1tu_t^rq)p
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
+
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost").split(",")
+#ALLOWED_HOSTS = []
 
 # CORS Configuration
 CORS_ALLOW_ALL_ORIGINS = True  # Solo para desarrollo, no usar en producción
@@ -101,6 +103,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'corsheaders.middleware.CorsMiddleware',
@@ -175,6 +178,13 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Esta ruta es donde se almacenarán los archivos cuando se ejecute collectstatic
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Para servir los archivos en producción (opcional si usas whitenoise)
+STATICFILES_DIRS = [
+    os.path.join(BASE_DIR, 'static'),
+]
 # Media files (Uploads)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
