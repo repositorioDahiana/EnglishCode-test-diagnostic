@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import audio from '../../assets/iconos/audio.png';
 
-export default function Listening({ onComplete }) {
+export default function Listening({ verticalId, onComplete }) {
   const [testData, setTestData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,8 +11,10 @@ export default function Listening({ onComplete }) {
   const API_BASE_URL = import.meta.env.VITE_API_URL;
 
   useEffect(() => {
-    fetchAvailableTests();
-  }, []);
+    if (verticalId) {
+      fetchAvailableTests();
+    }
+  }, [verticalId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -45,7 +47,7 @@ export default function Listening({ onComplete }) {
 
   const fetchAvailableTests = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/listening/tests/`);
+      const response = await fetch(`${API_BASE_URL}/api/listening/tests/?vertical=${verticalId}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudieron cargar los tests disponibles');
@@ -107,6 +109,7 @@ export default function Listening({ onComplete }) {
   const handleNextBlock = () => {
     if (currentBlockIndex < testData.blocks.length - 1) {
       setCurrentBlockIndex(prev => prev + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
@@ -230,7 +233,7 @@ export default function Listening({ onComplete }) {
           </p>
         </div>
       </div>
-  
+
       {/* Video Player */}
       {currentBlock.video_url && (
         <div className="aspect-video w-full bg-black rounded-lg overflow-hidden mb-8">

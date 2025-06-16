@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import speaking from '../../assets/iconos/micro.png';
 
-export default function Speaking({ onComplete }) {
+export default function Speaking({ verticalId, onComplete }) {
   const [testData, setTestData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -13,7 +13,7 @@ export default function Speaking({ onComplete }) {
   const API_BASE_URL = import.meta.env.VITE_API_URL;
   useEffect(() => {
     fetchAvailableTests();
-  }, []);
+  }, [verticalId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -46,7 +46,7 @@ export default function Speaking({ onComplete }) {
 
   const fetchAvailableTests = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/speaking/tests/`);
+      const response = await fetch(`${API_BASE_URL}/api/speaking/tests/?vertical=${verticalId}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudieron cargar los tests disponibles');

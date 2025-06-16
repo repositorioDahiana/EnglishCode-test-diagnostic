@@ -14,6 +14,8 @@ const Test = () => {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('listening');
+  const userInfo = JSON.parse(localStorage.getItem('userTestInfo'));
+  const verticalId = userInfo?.vertical;
 
   const tabs = [
     { key: 'listening', label: 'Listening', icon: audio },
@@ -90,13 +92,13 @@ const Test = () => {
   const renderModule = () => {
     switch (activeTab) {
       case 'listening':
-        return <Listening onComplete={() => handleModuleCompleted('listening')} />;
+        return <Listening verticalId={verticalId} onComplete={() => handleModuleCompleted('listening')} />;
       case 'speaking':
-        return <Speaking onComplete={() => handleModuleCompleted('speaking')} />;
+        return <Speaking verticalId={verticalId} onComplete={() => handleModuleCompleted('speaking')} />;
       case 'reading':
-        return <Reading onComplete={() => handleModuleCompleted('reading')} />;
+        return <Reading verticalId={verticalId} onComplete={() => handleModuleCompleted('reading')} />;
       case 'writing':
-        return <Writing onComplete={() => handleModuleCompleted('writing')} />;
+        return <Writing verticalId={verticalId} onComplete={() => handleModuleCompleted('writing')} />;
       default:
         return null;
     }

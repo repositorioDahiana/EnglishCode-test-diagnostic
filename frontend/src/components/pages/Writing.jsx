@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import writing from '../../assets/iconos/writi.png';
 
-export default function Writing({ onComplete }) {
+export default function Writing({verticalId, onComplete }) {
   const [testData, setTestData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -9,50 +9,42 @@ export default function Writing({ onComplete }) {
   const [timeLeft, setTimeLeft] = useState(900);
   const [answers, setAnswers] = useState({});
   const API_BASE_URL = import.meta.env.VITE_API_URL;
-  // Normaliza el texto, eliminando espacios y saltos de línea adicionales
   const normalizeText = (text) => {
-    // Elimina los espacios en blanco y líneas vacías
     return text.trim().replace(/\s+/g, ' ').toLowerCase();
   };
 
-  // Divide el texto en oraciones usando el punto como delimitador
   const splitTextIntoSentences = (text) => {
     return text.split('.').map(sentence => sentence.trim()).filter(sentence => sentence.length > 0);
   };
 
-  // Validación de la respuesta antes de pasar al siguiente bloque
   const validateAnswer = (blockId, answerText) => {
     const currentBlock = testData.blocks[currentBlockIndex];
 
     console.log('Comparando...');
-    console.log('Texto del usuario:', answerText.trim());  // Muestra la respuesta del usuario
-    console.log('Texto del ejemplo:', currentBlock.example.trim());  // Muestra el ejemplo
+    console.log('Texto del usuario:', answerText.trim());  
+    console.log('Texto del ejemplo:', currentBlock.example.trim());  
 
-    // Normalizar el texto para hacer una comparación precisa
     const normalizedAnswer = normalizeText(answerText);
     const normalizedExample = normalizeText(currentBlock.example);
 
-    console.log('Texto del usuario (normalizado):', normalizedAnswer);  // Muestra la respuesta normalizada
-    console.log('Texto del ejemplo (normalizado):', normalizedExample);  // Muestra el ejemplo normalizado
+    console.log('Texto del usuario (normalizado):', normalizedAnswer);  
+    console.log('Texto del ejemplo (normalizado):', normalizedExample);  
 
-    // Verificar si la respuesta del usuario contiene alguna oración del ejemplo
     const exampleSentences = splitTextIntoSentences(currentBlock.example);
 
     for (let sentence of exampleSentences) {
-      // Si alguna oración del ejemplo está contenida en la respuesta del usuario
       if (normalizedAnswer.includes(normalizeText(sentence))) {
         alert('⚠️ Tu respuesta no puede contener oraciones del ejemplo proporcionado. Por favor, escribe algo diferente.');
-        return false;  // No permite avanzar al siguiente bloque
+        return false;  
       }
     }
 
-    // Si pasa la validación, se puede avanzar
     return true;
   };
 
   useEffect(() => {
     fetchAvailableTests();
-  }, []);
+  }, [verticalId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -85,7 +77,7 @@ export default function Writing({ onComplete }) {
 
   const fetchAvailableTests = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/writing/tests/`);
+      const response = await fetch(`${API_BASE_URL}/api/writing/tests/?vertical=${verticalId}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudieron cargar los tests disponibles');

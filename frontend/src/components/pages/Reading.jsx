@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import reading from '../../assets/iconos/read.png';
 
-export default function Reading({ onComplete }) {
+export default function Reading({ verticalId, onComplete }) {
   const [testData, setTestData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -12,7 +12,7 @@ export default function Reading({ onComplete }) {
 
   useEffect(() => {
     fetchAvailableTests();
-  }, []);
+  }, [verticalId]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -45,7 +45,7 @@ export default function Reading({ onComplete }) {
 
   const fetchAvailableTests = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/reading/tests/`);
+      const response = await fetch(`${API_BASE_URL}/api/reading/tests/?vertical=${verticalId}`);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'No se pudieron cargar los tests disponibles');
