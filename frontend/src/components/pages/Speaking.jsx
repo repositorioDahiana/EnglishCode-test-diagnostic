@@ -99,9 +99,14 @@ export default function Speaking({ verticalId, onComplete }) {
         audioChunks.push(event.data);
       });
 
-      recorder.addEventListener('stop', () => {
+      recorder.addEventListener('stop', async () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+      
+        // Forzar lectura del blob para Chrome
+        await audioBlob.arrayBuffer();
+      
         const audioUrl = URL.createObjectURL(audioBlob);
+      
         setRecordings(prev => ({
           ...prev,
           [blockId]: {
