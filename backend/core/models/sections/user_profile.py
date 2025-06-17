@@ -6,7 +6,6 @@ class UserProfile(models.Model):
     email = models.EmailField(unique=True)
     vertical = models.IntegerField(choices=VERTICAL_CHOICES)
 
-    # Resultados por módulo (cada uno representa el 25%)
     resultado_listening = models.FloatField(
         validators=[MinValueValidator(0), MaxValueValidator(100)],
         null=True, blank=True
@@ -47,15 +46,24 @@ class UserProfile(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     def calcular_resultado_general(self):
-        resultados = [
-            self.resultado_listening,
-            self.resultado_speaking,
-            self.resultado_writing,
-            self.resultado_reading
-        ]
-        resultados_validos = [r for r in resultados if r is not None]
-        if resultados_validos:
-            self.resultado_general = sum(resultados_validos) / len(resultados_validos)
+        pesos = {
+            'resultado_listening': 0.35,
+            'resultado_speaking': 0.40,
+            'resultado_reading': 0.15,
+            'resultado_writing': 0.10,
+        }
+
+        total = 0
+        peso_total = 0
+
+        for campo, peso in pesos.items():
+            valor = getattr(self, campo)
+            if valor is not None:
+                total += valor * peso
+                peso_total += peso
+
+        if peso_total > 0:
+            self.resultado_general = total / peso_total
             self.actualizar_nivel()
         else:
             self.resultado_general = None
