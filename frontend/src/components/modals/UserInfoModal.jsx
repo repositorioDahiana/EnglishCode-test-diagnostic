@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import axios from 'axios';
+import { useEffect } from 'react';
 
 const VERTICAL_OPTIONS = [
   { id: 1, name: "Quality Assurance Engineers" },
@@ -25,6 +26,18 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit }) {
   const [hasTests, setHasTests] = useState(false);
   const [userStatus, setUserStatus] = useState(''); // 'existing' o 'new'
   
+  useEffect(() => {
+    const validateAndCheckUser = async () => {
+      if (/\S+@\S+\.\S+/.test(email)) {
+        await checkExistingUser();
+      } else {
+        setUserStatus('');
+      }
+    };
+  
+    validateAndCheckUser();
+  }, [email]);
+
   const checkTestsAvailability = async (verticalId) => {
     setIsCheckingTests(true);
     try {
@@ -90,17 +103,21 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit }) {
       const response = await axios.get(`${API_BASE_URL}/api/users/`, {
         params: { email }
       });
-      
+  
       if (response.data && response.data.length > 0) {
         setUserStatus('existing');
         return response.data[0];
       } else {
-        setUserStatus('new');
+        setUserStatus('notFound');
+        setErrors(prev => ({
+          ...prev,
+          email: 'Este correo no está registrado. Por favor usa un correo válido.'
+        }));
         return null;
       }
     } catch (error) {
       console.error('Error al verificar usuario:', error);
-      setUserStatus('new');
+      setUserStatus('unknown');
       return null;
     }
   };
@@ -114,6 +131,7 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit }) {
     try {
       // Primero verificamos si el usuario existe
       const existingUser = await checkExistingUser();
+      if (!existingUser) return;
 
       let userData;
       if (existingUser) {
@@ -126,14 +144,7 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit }) {
         } else {
           userData = existingUser;
         }
-      } else {
-        // Si el usuario no existe, lo creamos
-        const createResponse = await axios.post(`${API_BASE_URL}/api/users/`, {
-          email,
-          vertical: parseInt(vertical)
-        });
-        userData = createResponse.data;
-      }
+      } 
 
       // Preparamos los datos del usuario con el nombre de la vertical
       const userDataWithVertical = {
@@ -220,7 +231,7 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit }) {
                       <p className="mt-1 text-sm text-red-500">{errors.email}</p>
                     )}
                     {userStatus === 'existing' && (
-                      <p className="mt-1 text-sm text-green-500">Usuario existente - Bienvenido de nuevo</p>
+                      <p className="mt-1 text-sm text-green-500">Bienvenido</p>
                     )}
                   </div>
 
