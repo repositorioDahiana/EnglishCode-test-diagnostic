@@ -8,6 +8,7 @@ import audio from '../../assets/iconos/audio.png';
 import micro from '../../assets/iconos/micro.png';
 import read from '../../assets/iconos/read.png';
 import writi from '../../assets/iconos/writi.png';
+import ModalAlert from '../modals/ModalAlert';
 
 const Test = () => {
 
@@ -16,6 +17,10 @@ const Test = () => {
   const [activeTab, setActiveTab] = useState('listening');
   const userInfo = JSON.parse(localStorage.getItem('userTestInfo'));
   const verticalId = userInfo?.vertical;
+  const [showModal, setShowModal] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMessage, setModalMessage] = useState('');
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   const tabs = [
     { key: 'listening', label: 'Listening', icon: audio },
@@ -28,6 +33,21 @@ const Test = () => {
     const stored = localStorage.getItem('completedTests');
     return stored ? JSON.parse(stored) : {};
   });
+
+  const showModalAlert = (title, message) => {
+    console.log('Mostrando modal:', { title, message });
+    setModalTitle(title);
+    setModalMessage(message);
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    if (shouldRedirect) {
+      setShouldRedirect(false);
+      navigate('/');
+    }
+  };
 
   // Escuchar cambios de localStorage
   useEffect(() => {
@@ -44,8 +64,10 @@ const Test = () => {
   // Redirigir y borrar datos si el usuario cambia de pestaña
   useEffect(() => {
     const handleVisibilityChange = () => {
+      console.log('Visibility changed:', document.hidden);
       if (document.hidden) {
-        alert('⚠️ No puedes abandonar el test. Si cambias de pestaña, perderás tus respuestas y tu puntuación será 0.');
+        console.log('Intentando mostrar modal...');
+        showModalAlert('⚠️ No puedes abandonar el test. Si cambias de pestaña, perderás tus respuestas y tu puntuación será 0.');
         
         // Limpiar todas las respuestas y datos
         localStorage.removeItem('completedTests');
@@ -55,8 +77,8 @@ const Test = () => {
         localStorage.removeItem('writing_responses');
         localStorage.setItem('test_aborted', 'true');
 
-        // Redirigir al Home
-        navigate('/');  // Redirige al Home
+        // Marcar que se debe redirigir cuando se cierre el modal
+        setShouldRedirect(true);
       }
     };
 
@@ -107,7 +129,7 @@ const Test = () => {
   return (
     <div className="min-h-screen text-white px-6 py-10">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-center">Sistema de Evaluación de Inglés</h1>
+        <h1 className="text-3xl font-bold mb-6 text-center">English Assessment System</h1>
 
         <div className="flex justify-center flex-wrap gap-3 mb-6">
           {tabs.map((tab) => {
@@ -133,6 +155,14 @@ const Test = () => {
 
         <div className="mt-6">{renderModule()}</div>
       </div>
+      
+      <ModalAlert
+          isOpen={showModal}
+          title={modalTitle}
+          message={modalMessage}
+          onClose={handleModalClose}
+      />
+
     </div>
   );
 };

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import speaking from '../../assets/iconos/micro.png';
+import ModalAlert from '../modals/ModalAlert';
 
 export default function Speaking({ verticalId, onComplete }) {
   const [testData, setTestData] = useState(null);
@@ -11,6 +12,11 @@ export default function Speaking({ verticalId, onComplete }) {
   const [isRecording, setIsRecording] = useState(false);
   const [mediaRecorder, setMediaRecorder] = useState(null);
   const API_BASE_URL = import.meta.env.VITE_API_URL;
+  const [showModal, setShowModal] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMessage, setModalMessage] = useState('');
+
+
   useEffect(() => {
     fetchAvailableTests();
   }, [verticalId]);
@@ -32,7 +38,7 @@ export default function Speaking({ verticalId, onComplete }) {
 
   useEffect(() => {
     if (timeLeft === 0 && !hasSubmitted) {
-      alert('⏰ El tiempo ha terminado. Tus respuestas se están enviando automáticamente...');
+      showModalAlert('⏰ El tiempo ha terminado. Tus respuestas se están enviando automáticamente...');
       handleSubmitTest();
       setHasSubmitted(true);
     }
@@ -42,6 +48,19 @@ export default function Speaking({ verticalId, onComplete }) {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  };
+
+  const showModalAlert = (title, message) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    if (modalTitle.includes('✅') && typeof onComplete === 'function') {
+      onComplete();
+    }
   };
 
   const fetchAvailableTests = async () => {
@@ -173,14 +192,12 @@ export default function Speaking({ verticalId, onComplete }) {
   
       const result = await response.json();
   
-      // ✅ Guardar puntuación general en userInfo
       const updatedUserInfo = {
         ...userInfo,
         resultado_speaking: result.score
       };
       localStorage.setItem('userTestInfo', JSON.stringify(updatedUserInfo));
   
-      // ✅ Guardar feedback detallado para mostrar en FeedbackEnd
       if (result.report) {
         localStorage.setItem('speaking_feedback', JSON.stringify(result.report));
       }
@@ -188,16 +205,11 @@ export default function Speaking({ verticalId, onComplete }) {
         localStorage.setItem('speaking_level', result.cefr_level);
       }
   
-      alert(`✅ Audio enviado con éxito!`);
-  
-      // Llamar al manejador de finalización
-      if (typeof onComplete === 'function') {
-        onComplete();
-      }
+      showModalAlert('✅ Audio enviado con éxito!', 'Tus grabaciones han sido enviadas correctamente. Haz clic en "Cerrar" para continuar con la siguiente prueba.');
   
     } catch (err) {
       console.error(err);
-      alert('❌ Error al enviar respuestas: ' + err.message);
+      showModalAlert('❌ Error al enviar respuestas', `No se pudieron enviar las grabaciones: ${err.message}. Puedes intentar grabar nuevamente y volver a enviar.`);
     }
   };
 
@@ -206,7 +218,7 @@ export default function Speaking({ verticalId, onComplete }) {
       <div className="bg-neutral-950 p-6 rounded-lg shadow text-white min-h-screen">
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-          <p className="ml-2">Cargando test...</p>
+          <p className="ml-2">Loading test...</p>
         </div>
       </div>
     );
@@ -221,7 +233,7 @@ export default function Speaking({ verticalId, onComplete }) {
             onClick={fetchAvailableTests}
             className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
           >
-            Intentar de nuevo
+            Try again
           </button>
         </div>
       </div>
@@ -254,8 +266,8 @@ export default function Speaking({ verticalId, onComplete }) {
               {testData.title || 'Evaluación Speaking'}
             </h2>
           </div>
-          <div className="text-sm text-gray-400 bg-gray-800 px-3 py-1 rounded-lg font-mono">
-            Tiempo: {formatTime(timeLeft)}
+          <div className="text-sm text-black bg-white px-3 py-1 rounded-lg font-mono shadow">
+            Time: {formatTime(timeLeft)}
           </div>
         </div>
         <p className="text-gray-300">
@@ -264,6 +276,7 @@ export default function Speaking({ verticalId, onComplete }) {
 
         {/* Barra de Progreso */}
         <div className="mt-4 mb-6">
+          <h3 className="text-lg font-semibold text-white mb-2">Progress</h3>
           <div className="w-full bg-gray-800 rounded-full h-4">
             <div
               className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-in-out"
@@ -271,7 +284,7 @@ export default function Speaking({ verticalId, onComplete }) {
             ></div>
           </div>
           <p className="text-gray-400 text-sm mt-1 text-right">
-            {recordedBlocks} de {totalBlocks} grabaciones completadas ({progressPercent}%)
+            {recordedBlocks} of {totalBlocks} recordings completed ({progressPercent}%)
           </p>
         </div>
       </div>
@@ -287,10 +300,10 @@ export default function Speaking({ verticalId, onComplete }) {
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          Anterior
+          Former
         </button>
         <span className="text-gray-400">
-          Bloque {currentBlockIndex + 1} de {testData.blocks.length}
+          Block {currentBlockIndex + 1} of {testData.blocks.length}
         </span>
         <button
           onClick={handleNextBlock}
@@ -301,7 +314,7 @@ export default function Speaking({ verticalId, onComplete }) {
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          Siguiente
+          Following
         </button>
       </div>
 
@@ -316,12 +329,12 @@ export default function Speaking({ verticalId, onComplete }) {
 
         {/* Instructions */}
         <div className="bg-gray-900/30 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-2">Instrucciones:</h3>
+          <h3 className="text-lg font-semibold mb-2">Instructions:</h3>
           <p className="text-gray-300 mb-4">{currentBlock.instruction}</p>
           
           {currentBlock.example && (
             <div className="mt-4">
-              <h4 className="text-md font-semibold mb-2">Ejemplo:</h4>
+              <h4 className="text-md font-semibold mb-2">Example:</h4>
               <p className="text-gray-400 italic">{currentBlock.example}</p>
             </div>
           )}
@@ -338,12 +351,12 @@ export default function Speaking({ verticalId, onComplete }) {
                   : 'bg-blue-600 hover:bg-blue-700'
               }`}
             >
-              {isRecording ? 'Detener Grabación' : 'Iniciar Grabación'}
+              {isRecording ? 'Stop Recording' : 'Start Recording'}
             </button>
 
             {recordings[currentBlock.id]?.url && (
               <div className="w-full">
-                <h4 className="text-sm font-semibold mb-2">Tu grabación:</h4>
+                <h4 className="text-sm font-semibold mb-2">Your recording:</h4>
                 <audio
                   src={recordings[currentBlock.id].url}
                   controls
@@ -365,10 +378,10 @@ export default function Speaking({ verticalId, onComplete }) {
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            Anterior
+            Former
           </button>
           <span className="text-gray-400">
-            Bloque {currentBlockIndex + 1} de {testData.blocks.length}
+            Block {currentBlockIndex + 1} of {testData.blocks.length}
           </span>
           <button
             onClick={handleNextBlock}
@@ -379,7 +392,7 @@ export default function Speaking({ verticalId, onComplete }) {
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            Siguiente
+            Following
           </button>
         </div>
 
@@ -394,12 +407,18 @@ export default function Speaking({ verticalId, onComplete }) {
               }`}
             >
               {Object.keys(recordings).length < testData.blocks.length 
-                ? 'Graba todas las respuestas antes de enviar' 
-                : 'Enviar respuestas'}
+                ? 'Record all answers before submitting' 
+                : 'Submit responses'}
             </button>
           </div>
         )}
       </div>
+      <ModalAlert
+        isOpen={showModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={handleModalClose}
+      />
     </div>
   );
 } 

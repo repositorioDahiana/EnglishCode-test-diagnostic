@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import audio from '../../assets/iconos/audio.png';
+import ModalAlert from '../modals/ModalAlert';
 
 export default function Listening({ verticalId, onComplete }) {
   const [testData, setTestData] = useState(null);
@@ -7,8 +8,11 @@ export default function Listening({ verticalId, onComplete }) {
   const [error, setError] = useState(null);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [currentBlockIndex, setCurrentBlockIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(900); // 15 minutos
+  const [timeLeft, setTimeLeft] = useState(900); 
   const API_BASE_URL = import.meta.env.VITE_API_URL;
+  const [showModal, setShowModal] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMessage, setModalMessage] = useState('');
 
   useEffect(() => {
     if (verticalId) {
@@ -33,7 +37,7 @@ export default function Listening({ verticalId, onComplete }) {
 
   useEffect(() => {
     if (timeLeft === 0 && !hasSubmitted) {
-      alert('⏰ El tiempo ha terminado. Tus respuestas se están enviando automáticamente...');
+      showModalAlert('⏰ El tiempo ha terminado. Tus respuestas se están enviando automáticamente...');
       handleSubmitTest();
       setHasSubmitted(true);
     }
@@ -43,6 +47,12 @@ export default function Listening({ verticalId, onComplete }) {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
     return `${m}:${s}`;
+  };
+
+  const showModalAlert = (title, message) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setShowModal(true);
   };
 
   const fetchAvailableTests = async () => {
@@ -188,16 +198,18 @@ export default function Listening({ verticalId, onComplete }) {
         throw new Error(errorData.message || 'Error al enviar respuestas');
       }
   
-      alert('✅ Respuestas enviadas correctamente');
-  
-      // 🔔 MARCAR COMO COMPLETADO Y REDIRIGIR DESDE `Test.jsx`
-      if (typeof onComplete === 'function') {
-        onComplete();
-      }
+      showModalAlert('✅ Respuestas enviadas correctamente', 'Tus respuestas han sido guardadas exitosamente. Haz clic en "Cerrar" para continuar con la siguiente prueba.');
   
     } catch (err) {
       console.error(err);
-      alert('❌ Error al enviar respuestas: ' + err.message);
+      showModalAlert('❌ Error al enviar respuestas', err.message);
+    }
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    if (typeof onComplete === 'function') {
+      onComplete();
     }
   };
 
@@ -212,31 +224,19 @@ export default function Listening({ verticalId, onComplete }) {
               {testData.title || 'Evaluación Listening'}
             </h2>
           </div>
-          <div className="text-sm text-gray-400 bg-gray-800 px-3 py-1 rounded-lg font-mono">
-            Tiempo: {formatTime(timeLeft)}
+          <div className="text-sm text-black bg-white px-3 py-1 rounded-lg font-mono shadow">
+            Time: {formatTime(timeLeft)}
           </div>
         </div>
+        
         <p className="text-gray-300">
           {testData.description || 'Escucha los audios y responde las preguntas correctamente.'}
         </p>
-  
-        {/* 🔵 Barra de Progreso */}
-        <div className="mt-4 mb-6">
-          <div className="w-full bg-gray-800 rounded-full h-4">
-            <div
-              className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-in-out"
-              style={{ width: `${progressPercent}%` }}
-            ></div>
-          </div>
-          <p className="text-gray-400 text-sm mt-1 text-right">
-            {answeredQuestions} de {totalQuestions} preguntas respondidas ({progressPercent}%)
-          </p>
-        </div>
       </div>
 
       {/* Video Player */}
       {currentBlock.video_url && (
-        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden mb-8">
+        <div className="aspect-video w-full bg-black rounded-lg overflow-hidden mb-10">
           <video
             className="w-full h-full"
             controls
@@ -246,9 +246,23 @@ export default function Listening({ verticalId, onComplete }) {
           </video>
         </div>
       )}
+
+      {/* 🔵 Barra de Progreso */}
+      <div className="mt-4 mb-6">
+        <h3 className="text-lg font-semibold text-white mb-2">Progress</h3>
+        <div className="w-full bg-gray-800 rounded-full h-4">
+          <div
+            className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-in-out"
+            style={{ width: `${progressPercent}%` }}
+          ></div>
+        </div>
+        <p className="text-gray-400 text-sm mt-1 text-right">
+          {answeredQuestions} of {totalQuestions} questions answered ({progressPercent}%)
+        </p>
+      </div>
   
       {/* Questions (Two columns) */}
-      <div className="grid grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {currentBlock.questions.map((question) => (
           <div
             key={question.id}
@@ -285,10 +299,10 @@ export default function Listening({ verticalId, onComplete }) {
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          Anterior
+          Former
         </button>
         <span className="text-gray-400">
-          Bloque {currentBlockIndex + 1} de {testData.blocks.length}
+          Block {currentBlockIndex + 1} of {testData.blocks.length}
         </span>
         <button
           onClick={handleNextBlock}
@@ -299,7 +313,7 @@ export default function Listening({ verticalId, onComplete }) {
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          Siguiente
+          Following
         </button>
       </div>
   
@@ -310,10 +324,16 @@ export default function Listening({ verticalId, onComplete }) {
             onClick={handleSubmitTest}
             className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all"
           >
-            Enviar respuestas
+            Submit responses
           </button>
         </div>
       )}
-    </div>
+    <ModalAlert
+      isOpen={showModal}
+      title={modalTitle}
+      message={modalMessage}
+      onClose={handleModalClose}
+    />
+  </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import writing from '../../assets/iconos/writi.png';
+import ModalAlert from '../modals/ModalAlert';
 
 export default function Writing({verticalId, onComplete }) {
   const [testData, setTestData] = useState(null);
@@ -12,6 +13,10 @@ export default function Writing({verticalId, onComplete }) {
   const normalizeText = (text) => {
     return text.trim().replace(/\s+/g, ' ').toLowerCase();
   };
+  const [showModal, setShowModal] = useState(false);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalMessage, setModalMessage] = useState('');
+  
 
   const splitTextIntoSentences = (text) => {
     return text.split('.').map(sentence => sentence.trim()).filter(sentence => sentence.length > 0);
@@ -34,7 +39,7 @@ export default function Writing({verticalId, onComplete }) {
 
     for (let sentence of exampleSentences) {
       if (normalizedAnswer.includes(normalizeText(sentence))) {
-        alert('⚠️ Tu respuesta no puede contener oraciones del ejemplo proporcionado. Por favor, escribe algo diferente.');
+        showModalAlert('⚠️ Tu respuesta no puede contener oraciones del ejemplo proporcionado. Por favor, escribe algo diferente.');
         return false;  
       }
     }
@@ -63,11 +68,24 @@ export default function Writing({verticalId, onComplete }) {
 
   useEffect(() => {
     if (timeLeft === 0 && !hasSubmitted) {
-      alert('⏰ El tiempo ha terminado. Tus respuestas se están enviando automáticamente...');
+      showModalAlert('⏰ El tiempo ha terminado. Tus respuestas se están enviando automáticamente...');
       handleSubmitTest();
       setHasSubmitted(true);
     }
   }, [timeLeft, hasSubmitted]);
+
+  const showModalAlert = (title, message) => {
+    setModalTitle(title);
+    setModalMessage(message);
+    setShowModal(true);
+  };
+
+  const handleModalClose = () => {
+    setShowModal(false);
+    if (modalTitle.includes('✅') && typeof onComplete === 'function') {
+      onComplete();
+    }
+  };
 
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -131,12 +149,10 @@ export default function Writing({verticalId, onComplete }) {
     const currentBlock = testData.blocks[currentBlockIndex];
     const userAnswer = answers[currentBlock.id] || '';
 
-    // Validación antes de pasar al siguiente bloque
     if (!validateAnswer(currentBlock.id, userAnswer)) {
-      return; // No avanza si la respuesta es igual al ejemplo o contiene oraciones del ejemplo
+      return; 
     }
 
-    // Si pasa la validación, se puede avanzar
     if (currentBlockIndex < testData.blocks.length - 1) {
       setCurrentBlockIndex(prev => prev + 1);
     }
@@ -175,8 +191,7 @@ export default function Writing({verticalId, onComplete }) {
       }
     
       const result = await response.json();
-      const message = `✅ Test completado con éxito!`;
-      alert(message);
+      showModalAlert('✅ Test completado con éxito!', 'Tus respuestas han sido enviadas correctamente. Haz clic en "Cerrar" para continuar con la siguiente prueba.');
       localStorage.setItem('writing_criterios', JSON.stringify(result.criterios));
 
       // Guardar puntuación en localStorage
@@ -186,14 +201,9 @@ export default function Writing({verticalId, onComplete }) {
       };
       localStorage.setItem('userTestInfo', JSON.stringify(updatedUserInfo));
     
-      // ✅ Llamar al manejador externo
-      if (typeof onComplete === 'function') {
-        onComplete();
-      }
-    
     } catch (err) {
       console.error(err);
-      alert('❌ Error al enviar respuestas: ' + err.message);
+      showModalAlert('❌ Error al enviar respuestas', `No se pudieron enviar las respuestas: ${err.message}. Puedes intentar nuevamente.`);
     }
   };
 
@@ -202,7 +212,7 @@ export default function Writing({verticalId, onComplete }) {
       <div className="bg-neutral-950 p-6 rounded-lg shadow text-white min-h-screen">
         <div className="flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
-          <p className="ml-2">Cargando test...</p>
+          <p className="ml-2">Loading test...</p>
         </div>
       </div>
     );
@@ -217,7 +227,7 @@ export default function Writing({verticalId, onComplete }) {
             onClick={fetchAvailableTests}
             className="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
           >
-            Intentar de nuevo
+            Try again
           </button>
         </div>
       </div>
@@ -227,7 +237,7 @@ export default function Writing({verticalId, onComplete }) {
   if (!testData || !testData.blocks || testData.blocks.length === 0) {
     return (
       <div className="bg-neutral-950 p-6 rounded-lg shadow text-white min-h-screen">
-        <p>No hay contenido disponible para este test.</p>
+        <p>There is no content available for this test.</p>
       </div>
     );
   }
@@ -250,16 +260,17 @@ export default function Writing({verticalId, onComplete }) {
               {testData.title || 'Evaluación Writing'}
             </h2>
           </div>
-          <div className="text-sm text-gray-400 bg-gray-800 px-3 py-1 rounded-lg font-mono">
-            Tiempo: {formatTime(timeLeft)}
+          <div className="text-sm text-black bg-white px-3 py-1 rounded-lg font-mono shadow">
+            Time: {formatTime(timeLeft)}
           </div>
         </div>
         <p className="text-gray-300">
-          {testData.description || 'Escribe tus respuestas siguiendo las instrucciones.'}
+          {testData.description || 'Write your answers following the instructions.'}
         </p>
 
         {/* Barra de Progreso */}
         <div className="mt-4 mb-6">
+          <h3 className="text-lg font-semibold text-white mb-2">Progress</h3>
           <div className="w-full bg-gray-800 rounded-full h-4">
             <div
               className="bg-blue-600 h-4 rounded-full transition-all duration-300 ease-in-out"
@@ -267,7 +278,7 @@ export default function Writing({verticalId, onComplete }) {
             ></div>
           </div>
           <p className="text-gray-400 text-sm mt-1 text-right">
-            {answeredBlocks} de {totalBlocks} bloques completados ({progressPercent}%)
+            {answeredBlocks} of {totalBlocks} questions answered ({progressPercent}%)
           </p>
         </div>
       </div>
@@ -283,10 +294,10 @@ export default function Writing({verticalId, onComplete }) {
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          Anterior
+          Former
         </button>
         <span className="text-gray-400">
-          Bloque {currentBlockIndex + 1} de {testData.blocks.length}
+          Block {currentBlockIndex + 1} of {testData.blocks.length}
         </span>
         <button
           onClick={handleNextBlock}
@@ -297,7 +308,7 @@ export default function Writing({verticalId, onComplete }) {
               : 'bg-blue-600 hover:bg-blue-700'
           }`}
         >
-          Siguiente
+          Following
         </button>
       </div>
 
@@ -312,12 +323,12 @@ export default function Writing({verticalId, onComplete }) {
 
         {/* Instructions */}
         <div className="bg-gray-900/30 p-4 rounded-lg">
-          <h3 className="text-lg font-semibold mb-2">Instrucciones:</h3>
+          <h3 className="text-lg font-semibold mb-2">Instructions:</h3>
           <p className="text-gray-300 mb-4">{currentBlock.instruction}</p>
           
           {currentBlock.example && (
             <div className="mt-4">
-              <h4 className="text-md font-semibold mb-2">Ejemplo:</h4>
+              <h4 className="text-md font-semibold mb-2">Example:</h4>
               <p className="text-gray-400 italic" style={{ userSelect: 'none' }}>{currentBlock.example}</p>
             </div>
           )}
@@ -344,10 +355,10 @@ export default function Writing({verticalId, onComplete }) {
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            Anterior
+            Former
           </button>
           <span className="text-gray-400">
-            Bloque {currentBlockIndex + 1} de {testData.blocks.length}
+            Block {currentBlockIndex + 1} of {testData.blocks.length}
           </span>
           <button
             onClick={handleNextBlock}
@@ -358,7 +369,7 @@ export default function Writing({verticalId, onComplete }) {
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
           >
-            Siguiente
+            Following
           </button>
         </div>
 
@@ -369,11 +380,17 @@ export default function Writing({verticalId, onComplete }) {
               onClick={handleSubmitTest}
               className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all"
             >
-              Enviar respuestas
+              Submit responses
             </button>
           </div>
         )}
       </div>
+      <ModalAlert
+        isOpen={showModal}
+        title={modalTitle}
+        message={modalMessage}
+        onClose={handleModalClose}
+      />
     </div>
   );
 }
