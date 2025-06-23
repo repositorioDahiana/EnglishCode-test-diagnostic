@@ -7,6 +7,7 @@ from .viewsets import (
     SpeakingTestViewSet, SpeakingBlockViewSet
 )
 from core.viewsets.user_viewsets import UserProfileViewSet
+from core.viewsets.user_viewsets import auth0_login_view
 
 router = DefaultRouter()
 
@@ -35,4 +36,5 @@ router.register(r'users', UserProfileViewSet)
 
 urlpatterns = [
     path('api/', include(router.urls)),
+    path('api/auth/auth0-login/', auth0_login_view),
 ]

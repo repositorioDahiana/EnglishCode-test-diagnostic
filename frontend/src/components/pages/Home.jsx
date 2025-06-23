@@ -1,26 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ObjetivoIcon from '../../assets/iconos/objetivo.png'; 
-import histo from '../../assets/iconos/histograma.png'; 
-import audio from '../../assets/iconos/audio.png'; 
-import reloj from '../../assets/iconos/reloj.png'; 
-import micro from '../../assets/iconos/micro.png'; 
-import read from '../../assets/iconos/read.png'; 
-import writi from '../../assets/iconos/writi.png'; 
-import time from '../../assets/iconos/time.png'; 
+import { useAuth0 } from '@auth0/auth0-react';
+import ObjetivoIcon from '../../assets/iconos/objetivo.png';
+import histo from '../../assets/iconos/histograma.png';
+import audio from '../../assets/iconos/audio.png';
+import reloj from '../../assets/iconos/reloj.png';
+import micro from '../../assets/iconos/micro.png';
+import read from '../../assets/iconos/read.png';
+import writi from '../../assets/iconos/writi.png';
+import time from '../../assets/iconos/time.png';
 import UserInfoModal from '../modals/UserInfoModal';
+import axios from 'axios';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+
 
 export default function Home() {
   const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [token, setToken] = useState(null);
+  const [backendUser, setBackendUser] = useState(null);
+  
+  const {
+    loginWithRedirect,
+    isAuthenticated,
+    isLoading,
+    user,
+    getAccessTokenSilently
+  } = useAuth0();
+
+  // Obtener token y abrir modal si ya está autenticado
+  useEffect(() => {
+    const fetchUserFromBackend = async () => {
+      if (isAuthenticated) {
+        try {
+          const token = await getAccessTokenSilently();
+          const response = await axios.get(`${API_BASE_URL}/api/users/me/`, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            }
+          });
+          const backendUser = response.data;
+          setBackendUser(backendUser);
+          setToken(token);
+  
+          // Siempre abrir el modal, ya sea para usuarios existentes o nuevos
+          setIsModalOpen(true);
+        } catch (error) {
+          console.error('Error al obtener datos del usuario:', error);
+        }
+      }
+    };
+    fetchUserFromBackend();
+  }, [isAuthenticated]);
 
   const handleUserSubmit = (userData) => {
-    // Aquí puedes guardar los datos del usuario (email y vertical) en el estado global o localStorage
     localStorage.setItem('userTestInfo', JSON.stringify(userData));
     setIsModalOpen(false);
     navigate('/test');
   };
-
+  
   return (
     <div className="max-w-4xl mx-auto py-10 px-6">
       <div className="flex justify-between items-center mb-6">
@@ -202,20 +240,33 @@ export default function Home() {
           <p className="text-gray-400 text-sm mb-4">
             Una vez iniciada la evaluación, recomendamos completar todas las secciones sin interrupciones.
           </p>
-          <button 
-            onClick={() => setIsModalOpen(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
-          >
-            Comenzar Evaluación
-          </button>
-        </div>
+          <button
+          onClick={() => {
+            if (!isAuthenticated) {
+              loginWithRedirect({ redirect_uri: window.location.origin });
+            } else {
+              setIsModalOpen(true);
+            }
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
+        >
+          {isLoading ? "Cargando..." : "Comenzar Evaluación"}
+        </button>
       </div>
 
-      <UserInfoModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleUserSubmit}
-      />
+        {/* Modal de datos del usuario */}
+        {backendUser && (
+          <UserInfoModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            onSubmit={handleUserSubmit}
+            userDataFromBackend={{
+              email: backendUser.email,
+              vertical: backendUser.vertical,
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
