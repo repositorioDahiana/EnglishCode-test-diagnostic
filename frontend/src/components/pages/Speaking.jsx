@@ -109,23 +109,29 @@ export default function Speaking({ verticalId, onComplete }) {
   };
 
   const startRecording = async (blockId) => {
+    // Verificar si el navegador soporta grabación de audio
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError('El navegador no soporta grabación de audio.');
+      return;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
       const audioChunks = [];
-
+  
       recorder.addEventListener('dataavailable', (event) => {
         audioChunks.push(event.data);
       });
-
+  
       recorder.addEventListener('stop', async () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-      
-        // Forzar lectura del blob para Chrome
+  
+        // Forzar la lectura del blob para Chrome
         await audioBlob.arrayBuffer();
-      
+  
         const audioUrl = URL.createObjectURL(audioBlob);
-      
+  
         setRecordings(prev => ({
           ...prev,
           [blockId]: {
@@ -134,13 +140,18 @@ export default function Speaking({ verticalId, onComplete }) {
           }
         }));
       });
-
+  
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
     } catch (err) {
-      setError('No se pudo acceder al micrófono');
-    }
+      // Gestionar errores de permisos
+      if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+        setError('Por favor, concede permiso para usar el micrófono.');
+      } else {
+        setError('No se pudo acceder al micrófono por un error desconocido.');
+      }
+    }S
   };
 
   const stopRecording = () => {
@@ -178,13 +189,12 @@ export default function Speaking({ verticalId, onComplete }) {
         formData.append('audio', recording.blob, `block_${blockId}.wav`);
       }
   
-      const response = await fetch(`${API_BASE_URL}/api/speaking/tests/${testData.id}/submit_answers/`,
-        {
-          method: 'POST',
-          body: formData,
-        }
-      );
+      const response = await fetch(`${API_BASE_URL}/api/speaking/tests/${testData.id}/submit_answers/`, {
+        method: 'POST',
+        body: formData,
+      });
   
+      // Validar respuesta del servidor
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error al enviar respuestas');
@@ -206,12 +216,12 @@ export default function Speaking({ verticalId, onComplete }) {
       }
   
       showModalAlert('✅ Audio enviado con éxito!', 'Tus grabaciones han sido enviadas correctamente. Haz clic en "Cerrar" para continuar con la siguiente prueba.');
-  
     } catch (err) {
       console.error(err);
       showModalAlert('❌ Error al enviar respuestas', `No se pudieron enviar las grabaciones: ${err.message}. Puedes intentar grabar nuevamente y volver a enviar.`);
     }
   };
+  
 
   if (loading) {
     return (
