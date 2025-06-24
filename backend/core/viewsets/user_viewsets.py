@@ -317,21 +317,28 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 if not user_id:
                     return Response({"error": "User ID not found in token"}, status=400)
                 
-                # Preparar app_metadata para Auth0
-                app_metadata = {
-                    "Resultado_general": user.resultado_general,
-                    "english_level": user.nivel,
-                    "test_completed": True,
-                    "test_completion_date": user.fecha_actualizacion.isoformat()
-                }
+                # Solo actualizar app_metadata si todos los resultados están presentes
+                resultados_completos = all([
+                    user.resultado_listening is not None,
+                    user.resultado_speaking is not None,
+                    user.resultado_reading is not None,
+                    user.resultado_writing is not None
+                ])
                 
-                # Actualizar app_metadata en Auth0
-                try:
-                    update_user_app_metadata(user_id, app_metadata)
-                    print(f"=== DEBUG: App metadata actualizado en Auth0 ===")
-                except Exception as auth0_error:
-                    print(f"=== DEBUG: Error actualizando Auth0: {str(auth0_error)} ===")
-                    # Continuar aunque falle Auth0, los datos están en BD
+                auth0_updated = False
+                if resultados_completos:
+                    app_metadata = {
+                        "english_level": user.nivel
+                    }
+                    try:
+                        update_user_app_metadata(user_id, app_metadata)
+                        print(f"=== DEBUG: App metadata actualizado en Auth0 ===")
+                        auth0_updated = True
+                    except Exception as auth0_error:
+                        print(f"=== DEBUG: Error actualizando Auth0: {str(auth0_error)} ===")
+                        # Continuar aunque falle Auth0, los datos están en BD
+                else:
+                    print("=== DEBUG: No se actualiza Auth0 porque faltan resultados ===")
                 
                 return Response({
                     "email": user.email,
@@ -344,7 +351,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                         "general": user.resultado_general
                     },
                     "nivel": user.nivel,
-                    "auth0_updated": True
+                    "auth0_updated": auth0_updated
                 }, status=200)
                 
             except UserProfile.DoesNotExist:
