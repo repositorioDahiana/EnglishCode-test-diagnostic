@@ -151,7 +151,7 @@ export default function Speaking({ verticalId, onComplete }) {
       } else {
         setError('No se pudo acceder al micrófono por un error desconocido.');
       }
-    }S
+    }
   };
 
   const stopRecording = () => {
@@ -181,11 +181,25 @@ export default function Speaking({ verticalId, onComplete }) {
       return;
     }
   
+    // Verificar que hay grabaciones para todos los bloques
+    const recordingEntries = Object.entries(recordings);
+    if (recordingEntries.length === 0) {
+      setError('No hay grabaciones para enviar');
+      return;
+    }
+  
+    // Verificar que tenemos grabaciones para todos los bloques
+    if (recordingEntries.length < testData.blocks.length) {
+      setError(`Faltan grabaciones. Tienes ${recordingEntries.length} de ${testData.blocks.length} bloques grabados.`);
+      return;
+    }
+  
     try {
       const formData = new FormData();
       formData.append('user_email', userInfo.email);
   
-      for (const [blockId, recording] of Object.entries(recordings)) {
+      // Enviar todos los archivos de audio, uno por cada bloque
+      for (const [blockId, recording] of recordingEntries) {
         formData.append('audio', recording.blob, `block_${blockId}.wav`);
       }
   

@@ -29,50 +29,95 @@ class SpeakingTestViewSet(viewsets.ModelViewSet):
     def submit_answers(self, request, pk=None):
         test = self.get_object()
         user_email = request.data.get('user_email')
-        audio_file = request.FILES.get('audio')
+        audio_files = request.FILES.getlist('audio')  # Obtener todos los archivos de audio
 
-        if not user_email or not audio_file:
-            return Response({'error': 'Se requiere email y audio'}, status=400)
+        if not user_email or not audio_files:
+            return Response({'error': 'Se requiere email y archivos de audio'}, status=400)
 
         try:
             user_profile = UserProfile.objects.get(email=user_email)
         except UserProfile.DoesNotExist:
             return Response({'error': 'Usuario no encontrado'}, status=404)
 
-        speaking_block = SpeakingBlock.objects.filter(speaking_test=test).first()
-        if not speaking_block:
-            return Response({'error': 'No se encontró bloque de speaking'}, status=400)
+        # Obtener todos los bloques del test
+        speaking_blocks = SpeakingBlock.objects.filter(speaking_test=test).order_by('id')
+        if not speaking_blocks.exists():
+            return Response({'error': 'No se encontraron bloques de speaking'}, status=400)
 
-        reference_text = speaking_block.example
-
-        try:
-            evaluation = evaluate_speaking(reference_text, audio_file)
-
-            final_score = evaluation.get("final_score")
-            cefr_level = evaluation.get("cefr_level")
-            detailed_report = evaluation.get("detailed_report")
-
-            if final_score is None:
-                return Response(
-                    {"error": "No se recibió puntuación de pronunciación"},
-                    status=500
-                )
-
-            # Guardar solo el score promedio
-            user_profile.resultado_speaking = final_score
-            user_profile.save()
-
+        # Verificar que tenemos el mismo número de archivos que bloques
+        if len(audio_files) != speaking_blocks.count():
             return Response({
-                "score": final_score,
-                "cefr_level": cefr_level,
-                "report": detailed_report,  # se puede usar para retroalimentación detallada
-                "message": "Evaluación completada con éxito 🎤"
-            })
+                'error': f'Se esperaban {speaking_blocks.count()} archivos de audio, pero se recibieron {len(audio_files)}'
+            }, status=400)
 
-        except Exception as e:
-            return Response({
-                "error": f"Error al evaluar con Speechace: {str(e)}"
-            }, status=500)
+        # Evaluar cada archivo de audio con su bloque correspondiente
+        total_score = 0
+        valid_evaluations = 0
+        detailed_reports = []
+
+        for i, (audio_file, block) in enumerate(zip(audio_files, speaking_blocks)):
+            try:
+                reference_text = block.example
+                if not reference_text:
+                    reference_text = block.text  # Usar el texto como fallback
+
+                evaluation = evaluate_speaking(reference_text, audio_file)
+                
+                final_score = evaluation.get("final_score")
+                cefr_level = evaluation.get("cefr_level")
+                detailed_report = evaluation.get("detailed_report")
+
+                if final_score is not None:
+                    total_score += final_score
+                    valid_evaluations += 1
+                    detailed_reports.append({
+                        'block_id': block.id,
+                        'score': final_score,
+                        'cefr_level': cefr_level,
+                        'report': detailed_report
+                    })
+                else:
+                    detailed_reports.append({
+                        'block_id': block.id,
+                        'error': 'No se pudo evaluar este bloque'
+                    })
+
+            except Exception as e:
+                detailed_reports.append({
+                    'block_id': block.id,
+                    'error': f'Error al evaluar: {str(e)}'
+                })
+
+        # Calcular score promedio de todos los bloques evaluados
+        if valid_evaluations > 0:
+            average_score = total_score / valid_evaluations
+            # Determinar nivel CEFR basado en el score promedio
+            if average_score >= 80:
+                overall_cefr = 'C1'
+            elif average_score >= 70:
+                overall_cefr = 'B2'
+            elif average_score >= 60:
+                overall_cefr = 'B1'
+            elif average_score >= 50:
+                overall_cefr = 'A2'
+            else:
+                overall_cefr = 'A1'
+        else:
+            average_score = 0
+            overall_cefr = 'A1'
+
+        # Guardar el score promedio
+        user_profile.resultado_speaking = average_score
+        user_profile.save()
+
+        return Response({
+            "score": average_score,
+            "cefr_level": overall_cefr,
+            "report": detailed_reports,
+            "valid_evaluations": valid_evaluations,
+            "total_blocks": len(speaking_blocks),
+            "message": f"Evaluación completada con éxito 🎤 - {valid_evaluations}/{len(speaking_blocks)} bloques evaluados"
+        })
 
 
 class SpeakingBlockViewSet(viewsets.ModelViewSet):
