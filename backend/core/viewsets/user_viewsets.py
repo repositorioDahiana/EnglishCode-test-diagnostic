@@ -11,6 +11,7 @@ from django.conf import settings
 import requests
 from django.utils import timezone
 from datetime import timedelta
+from core.constants import VERTICAL_CHOICES
 
 
 def get_email_from_token(token, payload):
@@ -273,18 +274,31 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             if not vertical_id:
                 print("=== DEBUG: Vertical ID no proporcionado ===")
                 return Response({"error": "Vertical ID is required"}, status=400)
+            try:
+                vertical_id_int = int(vertical_id)
+            except Exception:
+                return Response({"error": "Vertical ID must be a valid integer"}, status=400)
+            valid_verticals = [v[0] for v in VERTICAL_CHOICES]
+            if vertical_id_int not in valid_verticals:
+                return Response({"error": "Vertical ID is not valid"}, status=400)
+            if not name or not str(name).strip():
+                return Response({"error": "Name is required"}, status=400)
             # Crear o recuperar usuario
-            user, created = UserProfile.objects.get_or_create(
-                email=email,
-                defaults={
-                    "vertical": vertical_id,
-                    "name": name
-                }
-            )
+            try:
+                user, created = UserProfile.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        "vertical": vertical_id_int,
+                        "name": name
+                    }
+                )
+            except Exception as e:
+                print(f"=== DEBUG: Error de integridad al crear usuario: {str(e)} ===")
+                return Response({"error": "Error creating user: " + str(e)}, status=400)
             updated = False
             if not created:
-                if user.vertical != vertical_id:
-                    user.vertical = vertical_id
+                if user.vertical != vertical_id_int:
+                    user.vertical = vertical_id_int
                     updated = True
                 if user.name != name:
                     user.name = name
@@ -304,7 +318,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             print(f"=== DEBUG: Error en create_with_vertical: {str(e)} ===")
             import traceback
             print(f"=== DEBUG: Traceback: {traceback.format_exc()} ===")
-            return Response({"error": str(e)}, status=401)
+            return Response({"error": str(e)}, status=400)
     
     @action(detail=False, methods=["patch"], url_path="set-vertical")
     def set_vertical(self, request):

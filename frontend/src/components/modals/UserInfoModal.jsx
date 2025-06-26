@@ -126,24 +126,10 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
     try {
       const token = await getAccessTokenSilently();
 
-      // Paso 1: Registrar intento antes de continuar
-      const intentoResponse = await axios.post(
-        `${API_BASE_URL}/api/users/register-attempt`,
-        {},
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          }
-        }
-      );
-
-      console.log('Intento registrado:', intentoResponse.data);
-
-      // Si pasa el intento, continúa con la creación/actualización del usuario
+      // Paso 1: Crear usuario (o actualizar si ya existe)
       const fullName = user?.name || user?.nickname || user?.email;
-
       const response = await axios.post(
-        `${API_BASE_URL}/api/users/create-with-vertical`,
+        `${API_BASE_URL}/api/users/create-with-vertical/`,
         {
           vertical_id: selectedVertical,
           name: fullName
@@ -155,8 +141,19 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
           }
         }
       );
+      console.log('Respuesta del servidor (creación usuario):', response.data);
 
-      console.log('Respuesta del servidor:', response.data);
+      // Paso 2: Registrar intento
+      const intentoResponse = await axios.post(
+        `${API_BASE_URL}/api/users/register-attempt/`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        }
+      );
+      console.log('Intento registrado:', intentoResponse.data);
 
       const userDataWithVertical = {
         email,
