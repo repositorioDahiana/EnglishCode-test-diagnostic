@@ -313,35 +313,6 @@ export default function Speaking({ verticalId, onComplete }) {
         </div>
       </div>
 
-      {/* Navigation */}
-      <div className="flex justify-between items-center mb-6">
-        <button
-          onClick={handlePreviousBlock}
-          disabled={currentBlockIndex === 0}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            currentBlockIndex === 0 
-              ? 'bg-gray-700 cursor-not-allowed' 
-              : 'bg-blue-600 hover:bg-blue-700'
-          }`}
-        >
-          Former
-        </button>
-        <span className="text-gray-400">
-          Block {currentBlockIndex + 1} of {testData.blocks.length}
-        </span>
-        <button
-          onClick={handleNextBlock}
-          disabled={currentBlockIndex === testData.blocks.length - 1}
-          className={`px-4 py-2 rounded-lg transition-colors ${
-            currentBlockIndex === testData.blocks.length - 1
-              ? 'bg-gray-700 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
-          }`}
-        >
-          Following
-        </button>
-      </div>
-
       {/* Current Block Content */}
       <div className="space-y-8">
         {/* Text to analyze */}
