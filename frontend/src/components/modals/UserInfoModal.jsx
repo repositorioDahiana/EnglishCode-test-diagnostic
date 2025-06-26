@@ -19,11 +19,13 @@ const VERTICAL_OPTIONS = [
 ];
 
 export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromBackend }) {
-  const { getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently, user } = useAuth0();
   const [hasTests, setHasTests] = useState(false);
   const [isCheckingTests, setIsCheckingTests] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedVertical, setSelectedVertical] = useState('');
+  const [userAttempts, setUserAttempts] = useState(null);
+  const [isCheckingAttempts, setIsCheckingAttempts] = useState(false);
 
   const email = userDataFromBackend?.email || '';
   const vertical = userDataFromBackend?.vertical_id || selectedVertical;
@@ -36,6 +38,46 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
       checkTestsAvailability(vertical);
     }
   }, [vertical]);
+
+  // Verificar intentos del usuario cuando se abre el modal
+  useEffect(() => {
+    if (isOpen && email) {
+      checkUserAttempts();
+    }
+  }, [isOpen, email]);
+
+  const checkUserAttempts = async () => {
+    setIsCheckingAttempts(true);
+    try {
+      const API_BASE_URL = import.meta.env.VITE_API_URL;
+      const token = await getAccessTokenSilently();
+      
+      const response = await axios.get(`${API_BASE_URL}/api/users/?email=${email}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
+
+      if (response.data.length > 0) {
+        const userProfile = response.data[0];
+        const fechaDesbloqueo = userProfile.fecha_bloqueo ? 
+          new Date(new Date(userProfile.fecha_bloqueo).getTime() + (5 * 24 * 60 * 60 * 1000)) : 
+          null;
+        
+        setUserAttempts({
+          intentos_realizados: userProfile.intentos_realizados,
+          puede_intentar: userProfile.puede_intentar_test,
+          fecha_bloqueo: userProfile.fecha_bloqueo,
+          fecha_desbloqueo: fechaDesbloqueo
+        });
+      }
+    } catch (error) {
+      console.error('Error al verificar intentos:', error);
+      setUserAttempts(null);
+    } finally {
+      setIsCheckingAttempts(false);
+    }
+  };
 
   const checkTestsAvailability = async (verticalId) => {
     setIsCheckingTests(true);
@@ -73,15 +115,35 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
       alert('Por favor selecciona una vertical');
       return;
     }
+
     setIsLoading(true);
+    const API_BASE_URL = import.meta.env.VITE_API_URL;
+
     try {
-      const API_BASE_URL = import.meta.env.VITE_API_URL;
       const token = await getAccessTokenSilently();
-      
-      // Crear o actualizar usuario con vertical en una sola operación
+
+      // Paso 1: Registrar intento antes de continuar
+      const intentoResponse = await axios.post(
+        `${API_BASE_URL}/api/users/register-attempt/`,
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          }
+        }
+      );
+
+      console.log('Intento registrado:', intentoResponse.data);
+
+      // Si pasa el intento, continúa con la creación/actualización del usuario
+      const fullName = user?.name || user?.nickname || user?.email;
+
       const response = await axios.post(
         `${API_BASE_URL}/api/users/create-with-vertical/`,
-        { vertical_id: selectedVertical },
+        {
+          vertical_id: selectedVertical,
+          name: fullName
+        },
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -89,23 +151,38 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
           }
         }
       );
-      
+
       console.log('Respuesta del servidor:', response.data);
-      
+
       const userDataWithVertical = {
         email,
         vertical: selectedVertical,
-        verticalName: VERTICAL_OPTIONS.find(opt => opt.id === parseInt(selectedVertical))?.name
+        verticalName: VERTICAL_OPTIONS.find(opt => opt.id === parseInt(selectedVertical))?.name,
+        fullName,
+        intentos_realizados: intentoResponse.data.intentos_realizados
       };
+
       localStorage.setItem('userTestInfo', JSON.stringify(userDataWithVertical));
       localStorage.removeItem('completedTests');
       onSubmit(userDataWithVertical);
+
     } catch (error) {
-      console.error('Error al crear/actualizar usuario:', error);
-      if (error.response) {
-        console.error('Respuesta del servidor:', error.response.data);
+      console.error('Error:', error);
+
+      // Bloqueo: si viene del backend como 403 por bloqueo
+      if (error.response?.status === 403 && error.response.data?.fecha_desbloqueo) {
+        const fecha = new Date(error.response.data.fecha_desbloqueo).toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        alert(`Has alcanzado el máximo de intentos (3). Tu cuenta está bloqueada hasta el ${fecha}.`);
+        onClose(); // Cerrar el modal
+      } else if (error.response?.status === 401) {
+        alert('Error de autenticación. Por favor inicia sesión nuevamente.');
+      } else {
+        alert('Error al registrar tu intento o guardar la información. Por favor intenta de nuevo.');
       }
-      alert('Error al guardar la información del usuario. Por favor intenta de nuevo.');
     } finally {
       setIsLoading(false);
     }
@@ -147,6 +224,43 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
                   <p className="text-white font-semibold">{email}</p>
                 </div>
 
+                {/* Información de intentos */}
+                {isCheckingAttempts ? (
+                  <div className="mb-4 p-3 bg-neutral-800 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500"></div>
+                      <p className="text-sm text-gray-300">Verificando intentos...</p>
+                    </div>
+                  </div>
+                ) : userAttempts && (
+                  <div className="mb-4 p-3 bg-neutral-800 rounded-lg">
+                    <p className="text-sm text-gray-300 mb-2">Estado de intentos:</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-white text-sm">
+                        Intentos realizados: {userAttempts.intentos_realizados}/3
+                      </span>
+                      {userAttempts.intentos_realizados >= 3 ? (
+                        <span className="text-red-400 text-sm font-medium">
+                          Bloqueado
+                        </span>
+                      ) : (
+                        <span className="text-blue-600 text-sm font-medium">
+                          Disponible
+                        </span>
+                      )}
+                    </div>
+                    {userAttempts.intentos_realizados >= 3 && userAttempts.fecha_desbloqueo && (
+                      <p className="text-xs text-red-300 mt-1">
+                        Desbloqueo: {userAttempts.fecha_desbloqueo.toLocaleDateString('es-ES', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div className="mb-6">
                   <p className="text-sm text-gray-300 mb-2">Vertical:</p>
                   {userDataFromBackend?.exists ? (
@@ -182,12 +296,21 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
                   <button
                     type="button"
                     className={`px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 ${
-                      isCheckingTests || (!hasTests && selectedVertical) || isLoading ? 'opacity-50 cursor-not-allowed' : ''
+                      isCheckingTests || (!hasTests && selectedVertical) || isLoading || 
+                      (userAttempts && !userAttempts.puede_intentar) ? 'opacity-50 cursor-not-allowed' : ''
                     }`}
                     onClick={handleContinue}
-                    disabled={isCheckingTests || (!hasTests && selectedVertical) || isLoading}
+                    disabled={
+                      isCheckingTests || 
+                      (!hasTests && selectedVertical) || 
+                      isLoading || 
+                      (userAttempts && !userAttempts.puede_intentar)
+                    }
                   >
-                    {isLoading ? "Guardando..." : isCheckingTests ? "Verificando..." : "Continuar"}
+                    {isLoading ? "Guardando..." : 
+                     isCheckingTests ? "Verificando..." : 
+                     (userAttempts && !userAttempts.puede_intentar) ? "Bloqueado" : 
+                     "Continuar"}
                   </button>
                 </div>
 

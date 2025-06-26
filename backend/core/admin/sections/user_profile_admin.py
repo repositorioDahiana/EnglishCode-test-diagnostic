@@ -5,6 +5,8 @@ from core.models.sections.user_profile import UserProfile
 class UserProfileAdmin(admin.ModelAdmin):
     list_display = (
         'email',
+        'name',
+        'intentos_realizados',
         'get_vertical_display',
         'resultado_listening',
         'resultado_speaking',
@@ -15,7 +17,7 @@ class UserProfileAdmin(admin.ModelAdmin):
         'fecha_creacion'
     )
     list_filter = ('nivel', 'vertical')
-    search_fields = ('email',)
+    search_fields = ('email', 'name')
     ordering = ('-fecha_creacion',)
 
     def get_vertical_display(self, obj):

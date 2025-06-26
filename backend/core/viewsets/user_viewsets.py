@@ -9,6 +9,8 @@ from rest_framework.decorators import action
 import jwt
 from django.conf import settings
 import requests
+from django.utils import timezone
+from datetime import timedelta
 
 
 def get_email_from_token(token, payload):
@@ -38,32 +40,48 @@ def auth0_login_view(request):
     try:
         token = get_token_auth_header(request)
         payload = verify_jwt(token)
-        
         email = payload.get("email")
+        # Priorizar el nombre recibido en el body, luego buscar en el token, luego el email
+        name = (
+            request.data.get("name") or
+            payload.get("name") or
+            payload.get("nickname") or
+            payload.get("given_name") or
+            payload.get("email")
+        )
+        
         app_metadata = payload.get("https://yourapp.com/app_metadata", {})
         vertical_id = app_metadata.get("vertical_id")
-        
         if not email:
             return Response({"error": "Email not found in token"}, status=400)
-        
         # Si no hay vertical_id en el token, usar un valor por defecto o requerirlo
         if not vertical_id:
             return Response({"error": "Vertical ID not found in token"}, status=400)
-        
         # Crear o recuperar el perfil del usuario
         user, created = UserProfile.objects.get_or_create(
             email=email,
-            defaults={"vertical": vertical_id}
+            defaults={
+                "vertical": vertical_id,
+                "name": name
+            }
         )
-        
+        # Si ya existía y el nombre o vertical cambió, actualízalos
+        if not created:
+            updated = False
+            if user.vertical != vertical_id:
+                user.vertical = vertical_id
+                updated = True
+            if user.name != name:
+                user.name = name
+                updated = True
+            if updated:
+                user.save()
         # Si el usuario ya existía pero el vertical cambió, actualizarlo
         if not created and user.vertical != vertical_id:
             user.vertical = vertical_id
             user.save()
-        
         serializer = UserProfileSerializer(user)
         return Response(serializer.data, status=200)
-        
     except Exception as e:
         return Response({"error": str(e)}, status=401)
 
@@ -79,6 +97,45 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         if email:
             queryset = queryset.filter(email=email)
         return queryset
+
+    @action(detail=False, methods=["post"], url_path="register-attempt")
+    def register_attempt(self, request):
+        try:
+            token = get_token_auth_header(request)
+            payload = verify_jwt(token)
+            email = get_email_from_token(token, payload)
+
+            if not email:
+                return Response({"error": "Email not found in token"}, status=400)
+
+            user = UserProfile.objects.get(email=email)
+
+            if not user.puede_intentar_test():
+                desbloqueo = user.fecha_bloqueo + timedelta(days=5)
+                return Response({
+                    "error": "Has alcanzado el máximo de intentos. Podrás volver a intentarlo el:",
+                    "fecha_desbloqueo": desbloqueo.date().isoformat()
+                }, status=403)
+
+            # Incrementar intento
+            user.intentos_realizados += 1
+
+            # Bloquear si ya llegó al intento 3
+            if user.intentos_realizados == 3:
+                user.fecha_bloqueo = timezone.now()
+
+            user.save()
+
+            return Response({
+                "message": "Intento registrado correctamente.",
+                "intentos_realizados": user.intentos_realizados,
+                "bloqueado": user.intentos_realizados >= 3
+            }, status=200)
+
+        except UserProfile.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+        except Exception as e:
+            return Response({"error": str(e)}, status=500)
 
     @action(detail=False, methods=["get"], url_path="me")
     def me(self, request):
@@ -104,7 +161,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
                 unverified_payload = jwt.decode(token, options={"verify_signature": False})
                 print(f"=== DEBUG: Payload sin verificar: {unverified_payload} ===")
                 
-                # Intentar verificación normal
+                # Verificación normal del token
                 payload = verify_jwt(token)
                 print(f"=== DEBUG: Payload verificado: {payload} ===")
             except Exception as verify_error:
@@ -197,45 +254,58 @@ class UserProfileViewSet(viewsets.ModelViewSet):
             token = get_token_auth_header(request)
             payload = verify_jwt(token)
             email = get_email_from_token(token, payload)
+            # Priorizar el nombre recibido en el body, luego buscar en el token, luego el email
+            name = (
+                request.data.get("name") or
+                payload.get("name") or
+                payload.get("nickname") or
+                payload.get("given_name") or
+                payload.get("email")
+            )
             vertical_id = request.data.get("vertical_id")
-            
             print(f"=== DEBUG: Email obtenido: {email} ===")
+            print(f"=== DEBUG: Nombre obtenido: {name} ===")
             print(f"=== DEBUG: Vertical ID recibido: {vertical_id} ===")
             print(f"=== DEBUG: Request data: {request.data} ===")
-            
             if not email:
                 print("=== DEBUG: Email no encontrado ===")
                 return Response({"error": "Email not found in token"}, status=400)
             if not vertical_id:
                 print("=== DEBUG: Vertical ID no proporcionado ===")
                 return Response({"error": "Vertical ID is required"}, status=400)
-            
-            # Crear o actualizar usuario con vertical
+            # Crear o recuperar usuario
             user, created = UserProfile.objects.get_or_create(
                 email=email,
-                defaults={"vertical": vertical_id}
+                defaults={
+                    "vertical": vertical_id,
+                    "name": name
+                }
             )
-            
-            # Si el usuario ya existía pero el vertical cambió, actualizarlo
-            if not created and user.vertical != vertical_id:
-                user.vertical = vertical_id
-                user.save()
-                print(f"=== DEBUG: Vertical actualizado a: {user.vertical} ===")
+            updated = False
+            if not created:
+                if user.vertical != vertical_id:
+                    user.vertical = vertical_id
+                    updated = True
+                if user.name != name:
+                    user.name = name
+                    updated = True
+                if updated:
+                    user.save()
+                    print("=== DEBUG: Usuario actualizado con nuevo vertical o nombre ===")
             else:
-                print(f"=== DEBUG: Usuario {'creado' if created else 'encontrado'}: {user.email} ===")
-            
+                print(f"=== DEBUG: Usuario creado: {user.email} ===")
             return Response({
                 "email": user.email, 
+                "name": user.name,
                 "vertical": user.vertical,
                 "created": created
             }, status=201 if created else 200)
-            
         except Exception as e:
             print(f"=== DEBUG: Error en create_with_vertical: {str(e)} ===")
             import traceback
             print(f"=== DEBUG: Traceback: {traceback.format_exc()} ===")
             return Response({"error": str(e)}, status=401)
-
+    
     @action(detail=False, methods=["patch"], url_path="set-vertical")
     def set_vertical(self, request):
         try:

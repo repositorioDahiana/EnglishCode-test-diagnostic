@@ -56,7 +56,7 @@ export default function FeedbackEnd() {
           writing: userProfile.resultado_writing
         };
 
-        console.log('Enviando resultados a Auth0:', testResults);
+        console.log('Enviando resultados a Auth0');
 
         // Llamar al endpoint para actualizar Auth0
         const response = await axios.post(

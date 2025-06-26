@@ -1,10 +1,22 @@
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from core.constants import VERTICAL_CHOICES
+from django.utils import timezone
+from datetime import timedelta
 
 class UserProfile(models.Model):
     email = models.EmailField(unique=True)
+    name = models.CharField(max_length=255, null=True, blank=True)
     vertical = models.IntegerField(choices=VERTICAL_CHOICES)
+    intentos_realizados = models.IntegerField(default=0)
+    fecha_bloqueo = models.DateTimeField(null=True, blank=True)
+
+    def puede_intentar_test(self):
+        if self.intentos_realizados < 3:
+            return True
+        if self.fecha_bloqueo:
+            return timezone.now() >= self.fecha_bloqueo + timedelta(days=5)
+        return False
 
     resultado_listening = models.FloatField(
         validators=[MinValueValidator(0), MaxValueValidator(100)],
@@ -46,28 +58,28 @@ class UserProfile(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     def calcular_resultado_general(self):
+        if (
+            self.resultado_listening is None or
+            self.resultado_speaking is None or
+            self.resultado_reading is None or
+            self.resultado_writing is None
+        ):
+            self.resultado_general = None
+            self.nivel = None
+            return  
         pesos = {
-            'resultado_listening': 0.35,
-            'resultado_speaking': 0.40,
-            'resultado_reading': 0.15,
-            'resultado_writing': 0.10,
+            'resultado_listening': 0.4,
+            'resultado_speaking': 0.4,
+            'resultado_reading': 0.1,
+            'resultado_writing': 0.1,
         }
 
         total = 0
-        peso_total = 0
-
         for campo, peso in pesos.items():
-            valor = getattr(self, campo)
-            if valor is not None:
-                total += valor * peso
-                peso_total += peso
+            total += getattr(self, campo) * peso
 
-        if peso_total > 0:
-            self.resultado_general = total / peso_total
-            self.actualizar_nivel()
-        else:
-            self.resultado_general = None
-            self.nivel = None
+        self.resultado_general = total
+        self.actualizar_nivel()
 
     def actualizar_nivel(self):
         if self.resultado_general is None:
