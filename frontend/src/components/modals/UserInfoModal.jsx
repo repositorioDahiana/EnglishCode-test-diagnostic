@@ -61,12 +61,16 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
       if (response.data.length > 0) {
         const userProfile = response.data[0];
         const fechaDesbloqueo = userProfile.fecha_bloqueo ? 
-          new Date(new Date(userProfile.fecha_bloqueo).getTime() + (5 * 24 * 60 * 60 * 1000)) : 
+          new Date(new Date(userProfile.fecha_bloqueo).getTime() + (2 * 24 * 60 * 60 * 1000)) : 
           null;
+        
+        // Calcular si puede intentar en el frontend
+        const puede_intentar = userProfile.intentos_realizados < 3 || 
+          (userProfile.fecha_bloqueo && new Date() >= new Date(userProfile.fecha_bloqueo).getTime() + (2 * 24 * 60 * 60 * 1000));
         
         setUserAttempts({
           intentos_realizados: userProfile.intentos_realizados,
-          puede_intentar: userProfile.puede_intentar_test,
+          puede_intentar: puede_intentar,
           fecha_bloqueo: userProfile.fecha_bloqueo,
           fecha_desbloqueo: fechaDesbloqueo
         });
@@ -124,7 +128,7 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
 
       // Paso 1: Registrar intento antes de continuar
       const intentoResponse = await axios.post(
-        `${API_BASE_URL}/api/users/register-attempt/`,
+        `${API_BASE_URL}/api/users/register-attempt`,
         {},
         {
           headers: {
@@ -139,7 +143,7 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
       const fullName = user?.name || user?.nickname || user?.email;
 
       const response = await axios.post(
-        `${API_BASE_URL}/api/users/create-with-vertical/`,
+        `${API_BASE_URL}/api/users/create-with-vertical`,
         {
           vertical_id: selectedVertical,
           name: fullName
@@ -167,7 +171,9 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
       onSubmit(userDataWithVertical);
 
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error completo:', error);
+      console.error('Error response:', error.response);
+      console.error('Error message:', error.message);
 
       // Bloqueo: si viene del backend como 403 por bloqueo
       if (error.response?.status === 403 && error.response.data?.fecha_desbloqueo) {
@@ -180,8 +186,14 @@ export default function UserInfoModal({ isOpen, onClose, onSubmit, userDataFromB
         onClose(); // Cerrar el modal
       } else if (error.response?.status === 401) {
         alert('Error de autenticación. Por favor inicia sesión nuevamente.');
+      } else if (error.response?.status === 404) {
+        alert('Endpoint no encontrado. Verifica la configuración del servidor.');
+      } else if (error.response?.status === 400) {
+        alert(`Error en la solicitud: ${error.response.data?.error || 'Datos inválidos'}`);
+      } else if (error.code === 'ERR_NETWORK') {
+        alert('Error de conexión. Verifica tu conexión a internet.');
       } else {
-        alert('Error al registrar tu intento o guardar la información. Por favor intenta de nuevo.');
+        alert(`Error inesperado: ${error.message || 'Error al registrar tu intento o guardar la información. Por favor intenta de nuevo.'}`);
       }
     } finally {
       setIsLoading(false);

@@ -60,7 +60,7 @@ export default function FeedbackEnd() {
 
         // Llamar al endpoint para actualizar Auth0
         const response = await axios.post(
-          `${API_BASE_URL}/api/users/update-test-results/`,
+          `${API_BASE_URL}/api/users/update-test-results`,
           {
             test_results: testResults,
             nivel: userProfile.nivel

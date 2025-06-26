@@ -35,7 +35,7 @@ export default function Home() {
         try {
           const token = await getAccessTokenSilently();
           
-          const response = await axios.get(`${API_BASE_URL}/api/users/me/`, {
+          const response = await axios.get(`${API_BASE_URL}/api/users/me`, {
             headers: {
               Authorization: `Bearer ${token}`,
             }
