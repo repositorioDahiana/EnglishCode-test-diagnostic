@@ -15,7 +15,7 @@ class UserProfile(models.Model):
         if self.intentos_realizados < 3:
             return True
         if self.fecha_bloqueo:
-            return timezone.now() >= self.fecha_bloqueo + timedelta(days=5)
+            return timezone.now() >= self.fecha_bloqueo + timedelta(days=2)
         return False
 
     resultado_listening = models.FloatField(
