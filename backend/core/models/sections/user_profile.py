@@ -14,9 +14,14 @@ class UserProfile(models.Model):
     def puede_intentar_test(self):
         if self.intentos_realizados < 3:
             return True
-        if self.fecha_bloqueo:
-            return timezone.now() >= self.fecha_bloqueo + timedelta(days=2)
+        if self.fecha_bloqueo and timezone.now() >= self.fecha_bloqueo + timedelta(days=2):
+            # Se cumplió el plazo, reiniciamos
+            self.intentos_realizados = 0
+            self.fecha_bloqueo = None
+            self.save(update_fields=["intentos_realizados", "fecha_bloqueo"])
+            return True
         return False
+
 
     resultado_listening = models.FloatField(
         validators=[MinValueValidator(0), MaxValueValidator(100)],

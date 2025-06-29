@@ -35,6 +35,8 @@ export default function Speaking({ verticalId, onComplete }) {
   }, []);
 
   const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [showRetryModal, setShowRetryModal] = useState(false);
+
 
   useEffect(() => {
     if (timeLeft === 0 && !hasSubmitted) {
@@ -229,8 +231,11 @@ export default function Speaking({ verticalId, onComplete }) {
         localStorage.setItem('speaking_level', result.cefr_level);
       }
   
-      showModalAlert('✅ Audio enviado con éxito!', 'Tus grabaciones han sido enviadas correctamente. Haz clic en "Cerrar" para continuar con la siguiente prueba.');
-    } catch (err) {
+      if (result.score === 0.0) {
+        setShowRetryModal(true);
+      } else {
+        showModalAlert('✅ Audio enviado con éxito!', 'Tus grabaciones han sido enviadas correctamente. Haz clic en "Cerrar" para continuar con la siguiente prueba.');
+      }} catch (err) {
       console.error(err);
       showModalAlert('❌ Error al enviar respuestas', `No se pudieron enviar las grabaciones: ${err.message}. Puedes intentar grabar nuevamente y volver a enviar.`);
     }
@@ -408,6 +413,56 @@ export default function Speaking({ verticalId, onComplete }) {
           </div>
         )}
       </div>
+      {showRetryModal && (
+        <div className="fixed inset-0 z-50">
+          {/* Fondo difuminado */}
+          <div className="fixed inset-0 backdrop-blur-sm bg-white/10" />
+
+          {/* Contenedor modal */}
+          <div className="fixed inset-0 flex items-center justify-center p-4">
+            <div className="w-full max-w-md rounded-2xl bg-neutral-900 p-6 shadow-xl text-center text-white">
+              <h2 className="text-lg font-medium text-red-400 mb-4">⚠️ Audio de baja calidad</h2>
+              <p className="text-gray-300 text-sm mb-4">
+                Tu calificación fue <strong className="text-white">0.0</strong>. Esto puede deberse a que tu voz no se escuchó bien.
+                Te recomendamos:
+              </p>
+              <ul className="text-left text-sm text-gray-400 list-disc list-inside mb-4">
+                <li>Grabar más cerca del micrófono</li>
+                <li>Usar tu celular si estás desde un PC</li>
+                <li>Evitar ruido de fondo</li>
+              </ul>
+              <p className="text-gray-300 text-sm mb-6">¿Deseas volver a grabar o continuar de todos modos?</p>
+
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => {
+                    setShowRetryModal(false);
+                    setRecordings({});
+                    setCurrentBlockIndex(0);
+                    setTimeLeft(900);
+                  }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                >
+                  Volver a grabar
+                </button>
+                <button
+                  onClick={() => {
+                    setShowRetryModal(false);
+                    showModalAlert(
+                      '✅ Audio enviado con éxito!',
+                      'Tus grabaciones han sido enviadas correctamente. Haz clic en "Cerrar" para continuar con la siguiente prueba.'
+                    );
+                  }}
+                  className="px-4 py-2 bg-neutral-700 text-white rounded-md hover:bg-neutral-600 transition"
+                >
+                  Continuar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ModalAlert
         isOpen={showModal}
         title={modalTitle}
