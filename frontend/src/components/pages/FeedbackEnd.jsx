@@ -114,7 +114,7 @@ export default function FeedbackEnd() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-white p-6 flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-neutral-950 text-white pt-24 px-6 flex flex-col items-center justify-start">
       <div className="bg-neutral-900 p-8 rounded-3xl shadow-lg max-w-xl w-full text-center">
 
         <div className="bg-blue-950 border border-blue-500 rounded-full px-6 py-2 inline-block mb-6">
@@ -175,7 +175,7 @@ export default function FeedbackEnd() {
           </div>
         </div>
 
-        <div className="bg-blue-800/40 p-4 rounded-3xl mt-4 flex items-center gap-3 justify-center">
+        {/*<div className="bg-blue-800/40 p-4 rounded-3xl mt-4 flex items-center gap-3 justify-center">
           <img src={ObjetivoIcon} alt="Objetivo" className="w-6 h-6" />
           <div>
             <p className="text-xl font-semibold">Nivel Asignado:</p>
@@ -183,8 +183,13 @@ export default function FeedbackEnd() {
               {profile.nivel_display}
             </p>
           </div>
+        </div>*/}
+        <div className="mt-6 text-center text-sm text-gray-300 max-w-md mx-auto">
+          <p className="font-medium text-white mb-1">Tu nivel será confirmado en la próxima sesión</p>
+          <p>
+            Hemos registrado tus resultados. Durante tu siguiente clase, tu coach revisará el desempeño y te confirmará el nivel más adecuado para continuar tu proceso.
+          </p>
         </div>
-
         <p className="text-sm text-gray-400 mt-6">
           Última actualización: {new Date(profile.fecha_actualizacion).toLocaleString()}
         </p>
