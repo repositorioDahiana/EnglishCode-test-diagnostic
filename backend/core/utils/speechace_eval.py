@@ -1,9 +1,17 @@
 import requests
 import json
 from django.conf import settings
+import logging
 
 def evaluate_speaking(student_text, audio_file):
     try:
+        logging.info(f"[SPEAKING] Texto de referencia: {student_text}")
+        logging.info(f"[SPEAKING] Tipo de archivo recibido: {getattr(audio_file, 'content_type', 'desconocido')}")
+        audio_file.seek(0, 2)
+        file_size = audio_file.tell()
+        audio_file.seek(0)
+        logging.info(f"[SPEAKING] Tamaño del archivo de audio: {file_size} bytes")
+
         files = {
             "text": (None, student_text),
             "user_audio_file": audio_file
@@ -21,9 +29,8 @@ def evaluate_speaking(student_text, audio_file):
             timeout=50  # Agregar timeout
         )
 
-        print("✅ Status code de Speechace:", response.status_code)
-        print("📦 Contenido:")
-        print(response.text)
+        logging.info(f"[SPEAKING] Status code de Speechace: {response.status_code}")
+        logging.info(f"[SPEAKING] Respuesta de Speechace: {response.text}")
 
         response.raise_for_status()
         
@@ -37,12 +44,13 @@ def evaluate_speaking(student_text, audio_file):
 
         # Validar estructura de respuesta
         if not isinstance(result, dict):
+            logging.warning("[SPEAKING] Respuesta de Speechace no es un objeto válido")
             raise RuntimeError("Respuesta de Speechace no es un objeto válido")
 
         # Navegar dentro de "text_score" para sacar el puntaje principal
         text_score = result.get("text_score", {})
         if not text_score:
-            print("⚠️ No se encontró 'text_score' en la respuesta")
+            logging.warning("[SPEAKING] No se encontró 'text_score' en la respuesta")
             # Intentar buscar en otras ubicaciones posibles
             speechace_score = result.get("speechace_score", {})
             if speechace_score:
@@ -57,8 +65,8 @@ def evaluate_speaking(student_text, audio_file):
             cefr_level = text_score.get("cefr_score", {}).get("pronunciation", None)
 
         # Logging para debug
-        print(f"🎯 Score final: {final_score}")
-        print(f"📊 Nivel CEFR: {cefr_level}")
+        logging.info(f"[SPEAKING] Score final extraído: {final_score}")
+        logging.info(f"[SPEAKING] Nivel CEFR extraído: {cefr_level}")
 
         return {
             "final_score": final_score,

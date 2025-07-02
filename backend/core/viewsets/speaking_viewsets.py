@@ -2,6 +2,7 @@ from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
+import logging
 
 from core.models.sections.speaking import SpeakingTest, SpeakingBlock
 from core.models.sections.user_profile import UserProfile
@@ -30,6 +31,14 @@ class SpeakingTestViewSet(viewsets.ModelViewSet):
         test = self.get_object()
         user_email = request.data.get('user_email')
         audio_files = request.FILES.getlist('audio')  # Obtener todos los archivos de audio
+
+        logging.info(f"[SPEAKING] Email recibido: {user_email}")
+        logging.info(f"[SPEAKING] Archivos recibidos: {[f.name for f in audio_files]}")
+        for idx, f in enumerate(audio_files):
+            f.seek(0, 2)
+            size = f.tell()
+            f.seek(0)
+            logging.info(f"[SPEAKING] Archivo {idx}: {f.name}, tamaño: {size} bytes, tipo: {getattr(f, 'content_type', 'desconocido')}")
 
         if not user_email or not audio_files:
             return Response({'error': 'Se requiere email y archivos de audio'}, status=400)
@@ -60,8 +69,9 @@ class SpeakingTestViewSet(viewsets.ModelViewSet):
                 reference_text = block.example
                 if not reference_text:
                     reference_text = block.text  # Usar el texto como fallback
-
+                logging.info(f"[SPEAKING] Evaluando bloque {block.id} con texto: {reference_text}")
                 evaluation = evaluate_speaking(reference_text, audio_file)
+                logging.info(f"[SPEAKING] Resultado evaluación bloque {block.id}: {evaluation}")
                 
                 final_score = evaluation.get("final_score")
                 cefr_level = evaluation.get("cefr_level")
@@ -83,6 +93,7 @@ class SpeakingTestViewSet(viewsets.ModelViewSet):
                     })
 
             except Exception as e:
+                logging.error(f"[SPEAKING] Error al evaluar bloque {block.id}: {str(e)}")
                 detailed_reports.append({
                     'block_id': block.id,
                     'error': f'Error al evaluar: {str(e)}'

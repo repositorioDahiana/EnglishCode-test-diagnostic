@@ -128,12 +128,9 @@ export default function Speaking({ verticalId, onComplete }) {
   
       recorder.addEventListener('stop', async () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-  
-        // Forzar la lectura del blob para Chrome
         await audioBlob.arrayBuffer();
-  
         const audioUrl = URL.createObjectURL(audioBlob);
-  
+        console.log('[SPEAKING] Grabación terminada para bloque', blockId, 'Tamaño:', audioBlob.size, 'Tipo:', audioBlob.type, 'URL:', audioUrl);
         setRecordings(prev => ({
           ...prev,
           [blockId]: {
@@ -202,6 +199,7 @@ export default function Speaking({ verticalId, onComplete }) {
   
       // Enviar todos los archivos de audio, uno por cada bloque
       for (const [blockId, recording] of recordingEntries) {
+        console.log('[SPEAKING] Enviando audio para bloque', blockId, 'Tamaño:', recording.blob.size, 'Tipo:', recording.blob.type);
         formData.append('audio', recording.blob, `block_${blockId}.wav`);
       }
   
@@ -217,6 +215,7 @@ export default function Speaking({ verticalId, onComplete }) {
       }
   
       const result = await response.json();
+      console.log('[SPEAKING] Respuesta del backend:', result);
   
       const updatedUserInfo = {
         ...userInfo,
@@ -232,10 +231,12 @@ export default function Speaking({ verticalId, onComplete }) {
       }
   
       if (result.score === 0.0) {
+        console.warn('[SPEAKING] Score recibido 0.0, posible problema de audio o evaluación.');
         setShowRetryModal(true);
       } else {
         showModalAlert('✅ Audio enviado con éxito!', 'Tus grabaciones han sido enviadas correctamente. Haz clic en "Cerrar" para continuar con la siguiente prueba.');
-      }} catch (err) {
+      }
+    } catch (err) {
       console.error(err);
       showModalAlert('❌ Error al enviar respuestas', `No se pudieron enviar las grabaciones: ${err.message}. Puedes intentar grabar nuevamente y volver a enviar.`);
     }
