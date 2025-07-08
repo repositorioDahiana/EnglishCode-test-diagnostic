@@ -15,7 +15,7 @@ export default function Speaking({ verticalId, onComplete }) {
   const [showModal, setShowModal] = useState(false);
   const [modalTitle, setModalTitle] = useState('');
   const [modalMessage, setModalMessage] = useState('');
-
+  const MIN_AUDIO_DURATION_SECONDS = 1; // Duración mínima en segundos para aceptar el audio
 
   useEffect(() => {
     fetchAvailableTests();
@@ -118,28 +118,49 @@ export default function Speaking({ verticalId, onComplete }) {
     }
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 44100,
+          channelCount: 2,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true
+        }
+      });
       const recorder = new MediaRecorder(stream);
       const audioChunks = [];
-  
+      let startTime = null;
+      
+      recorder.addEventListener('start', () => {
+        startTime = Date.now();
+      });
+
       recorder.addEventListener('dataavailable', (event) => {
         audioChunks.push(event.data);
       });
-  
+
       recorder.addEventListener('stop', async () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
         await audioBlob.arrayBuffer();
         const audioUrl = URL.createObjectURL(audioBlob);
-        console.log('[SPEAKING] Grabación terminada para bloque', blockId, 'Tamaño:', audioBlob.size, 'Tipo:', audioBlob.type, 'URL:', audioUrl);
-        setRecordings(prev => ({
-          ...prev,
-          [blockId]: {
-            blob: audioBlob,
-            url: audioUrl
+        // Validar duración mínima del audio
+        const audio = new Audio(audioUrl);
+        audio.addEventListener('loadedmetadata', () => {
+          const duration = audio.duration;
+          if (duration < MIN_AUDIO_DURATION_SECONDS) {
+            setError('El audio es demasiado corto. Por favor, graba al menos 1 segundo.');
+            return;
           }
-        }));
+          setRecordings(prev => ({
+            ...prev,
+            [blockId]: {
+              blob: audioBlob,
+              url: audioUrl
+            }
+          }));
+        });
       });
-  
+
       recorder.start();
       setMediaRecorder(recorder);
       setIsRecording(true);
