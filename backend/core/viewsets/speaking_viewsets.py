@@ -59,16 +59,38 @@ class SpeakingTestViewSet(viewsets.ModelViewSet):
                 'error': f'Se esperaban {speaking_blocks.count()} archivos de audio, pero se recibieron {len(audio_files)}'
             }, status=400)
 
+        # Validaciones adicionales de archivos antes de enviar a Speechace
+        for i, audio_file in enumerate(audio_files):
+            audio_file.seek(0, 2)
+            file_size = audio_file.tell()
+            audio_file.seek(0)
+            
+            if file_size == 0:
+                logging.error(f"[SPEAKING] Archivo {i} está vacío")
+                return Response({'error': f'El archivo de audio {i+1} está vacío'}, status=400)
+            
+            if file_size < 1024:  # Menos de 1KB
+                logging.warning(f"[SPEAKING] Archivo {i} muy pequeño: {file_size} bytes")
+            
+            content_type = getattr(audio_file, 'content_type', '')
+            if content_type and not any(audio_type in content_type.lower() for audio_type in ['audio', 'wav', 'webm', 'ogg']):
+                logging.warning(f"[SPEAKING] Tipo de archivo sospechoso en archivo {i}: {content_type}")
+
         # Evaluar cada archivo de audio con su bloque correspondiente
         total_score = 0
         valid_evaluations = 0
         detailed_reports = []
+        zero_scores_count = 0
 
         for i, (audio_file, block) in enumerate(zip(audio_files, speaking_blocks)):
             try:
                 reference_text = block.example
                 if not reference_text:
                     reference_text = block.text  # Usar el texto como fallback
+                    
+                if not reference_text or len(reference_text.strip()) < 5:
+                    logging.warning(f"[SPEAKING] Texto de referencia muy corto para bloque {block.id}: '{reference_text}'")
+                
                 logging.info(f"[SPEAKING] Evaluando bloque {block.id} con texto: {reference_text}")
                 evaluation = evaluate_speaking(reference_text, audio_file)
                 logging.info(f"[SPEAKING] Resultado evaluación bloque {block.id}: {evaluation}")
@@ -80,23 +102,33 @@ class SpeakingTestViewSet(viewsets.ModelViewSet):
                 if final_score is not None:
                     total_score += final_score
                     valid_evaluations += 1
+                    
+                    # Detectar scores problemáticos
+                    if final_score == 0.0:
+                        zero_scores_count += 1
+                        logging.warning(f"[SPEAKING] Score 0.0 detectado en bloque {block.id}")
+                    
                     detailed_reports.append({
                         'block_id': block.id,
                         'score': final_score,
                         'cefr_level': cefr_level,
-                        'report': detailed_report
+                        'report': detailed_report,
+                        'reference_text': reference_text[:100] + "..." if len(reference_text) > 100 else reference_text  # Para debug
                     })
                 else:
+                    logging.error(f"[SPEAKING] Score nulo para bloque {block.id}")
                     detailed_reports.append({
                         'block_id': block.id,
-                        'error': 'No se pudo evaluar este bloque'
+                        'error': 'No se pudo evaluar este bloque - score nulo',
+                        'reference_text': reference_text[:100] + "..." if len(reference_text) > 100 else reference_text
                     })
 
             except Exception as e:
                 logging.error(f"[SPEAKING] Error al evaluar bloque {block.id}: {str(e)}")
                 detailed_reports.append({
                     'block_id': block.id,
-                    'error': f'Error al evaluar: {str(e)}'
+                    'error': f'Error al evaluar: {str(e)}',
+                    'reference_text': reference_text[:100] + "..." if len(reference_text) > 100 else reference_text
                 })
 
         # Calcular score promedio de todos los bloques evaluados
@@ -117,6 +149,13 @@ class SpeakingTestViewSet(viewsets.ModelViewSet):
             average_score = 0
             overall_cefr = 'A1'
 
+        # Logging adicional para casos problemáticos
+        if zero_scores_count > 0:
+            logging.warning(f"[SPEAKING] {zero_scores_count} de {valid_evaluations} evaluaciones obtuvieron score 0.0")
+        
+        if average_score == 0.0:
+            logging.error(f"[SPEAKING] Score promedio 0.0 - posible problema sistemático")
+
         # Guardar el score promedio
         user_profile.resultado_speaking = average_score
         user_profile.save()
@@ -127,7 +166,9 @@ class SpeakingTestViewSet(viewsets.ModelViewSet):
             "report": detailed_reports,
             "valid_evaluations": valid_evaluations,
             "total_blocks": len(speaking_blocks),
-            "message": f"Evaluación completada con éxito 🎤 - {valid_evaluations}/{len(speaking_blocks)} bloques evaluados"
+            "zero_scores_count": zero_scores_count,  # Para debugging en frontend
+            "message": f"Evaluación completada con éxito{valid_evaluations}/{len(speaking_blocks)} bloques evaluados" + 
+                      (f" (⚠️ {zero_scores_count} con score 0.0)" if zero_scores_count > 0 else "")
         })
 
 

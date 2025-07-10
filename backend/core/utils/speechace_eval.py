@@ -7,10 +7,24 @@ def evaluate_speaking(student_text, audio_file):
     try:
         logging.info(f"[SPEAKING] Texto de referencia: {student_text}")
         logging.info(f"[SPEAKING] Tipo de archivo recibido: {getattr(audio_file, 'content_type', 'desconocido')}")
+        
+        # Obtener tamaño del archivo sin consumir su contenido
         audio_file.seek(0, 2)
         file_size = audio_file.tell()
         audio_file.seek(0)
         logging.info(f"[SPEAKING] Tamaño del archivo de audio: {file_size} bytes")
+
+        # Validaciones adicionales del archivo
+        if file_size == 0:
+            raise RuntimeError("El archivo de audio está vacío")
+        
+        if file_size < 1024:  # Menos de 1KB es probablemente demasiado pequeño
+            logging.warning(f"[SPEAKING] Archivo muy pequeño: {file_size} bytes")
+        
+        # Validar tipo de contenido
+        content_type = getattr(audio_file, 'content_type', '')
+        if content_type and not any(audio_type in content_type.lower() for audio_type in ['audio', 'wav', 'webm', 'ogg']):
+            logging.warning(f"[SPEAKING] Tipo de archivo sospechoso: {content_type}")
 
         files = {
             "text": (None, student_text),
@@ -19,9 +33,9 @@ def evaluate_speaking(student_text, audio_file):
 
         print("📡 Enviando a Speechace con texto:")
         print(student_text)
-        print("🎧 Tipo de archivo:", audio_file.content_type)
-        print("📏 Tamaño del archivo:", len(audio_file.read()))
-        audio_file.seek(0)  # Resetear el puntero del archivo
+        print("🎧 Tipo de archivo:", getattr(audio_file, 'content_type', 'desconocido'))
+        print(f"📏 Tamaño del archivo: {file_size} bytes")
+        # NO consumir el archivo con .read() aquí
 
         response = requests.post(
             settings.API_SPEECH_ACE_URL,
@@ -68,6 +82,10 @@ def evaluate_speaking(student_text, audio_file):
         logging.info(f"[SPEAKING] Score final extraído: {final_score}")
         logging.info(f"[SPEAKING] Nivel CEFR extraído: {cefr_level}")
 
+        # Validación adicional de scores sospechosos
+        if final_score is not None and final_score == 0.0:
+            logging.warning("[SPEAKING] Score 0.0 detectado - posible problema de audio")
+            
         return {
             "final_score": final_score,
             "cefr_level": cefr_level,
